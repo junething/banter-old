@@ -1,0 +1,7 @@
+Terminal	print: 'Hello';
+			print: ' ';
+			print: 'World!'.
+Object subclass: 'Int'
+	fun parseFrom: String do: [
+		9 return.
+	]
