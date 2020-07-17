@@ -2,43 +2,57 @@
 #include "list.h"
 #include "linked_list.h"
 #include "macros.h"
-
+#include "nodes.h"
 // LinkedList
 
 
 
 LinkedList *LinkedList__new() {
-	LinkedList *ll = new(LinkedList);
-	ll->vt = &linkedListVT;
-	return ll;
+	LinkedList *linkedList = new(LinkedList);
+	return linkedList;
 }
 
-List *LinkedList__append(List *list, void *item) {
-	LinkedList *linkedList = (LinkedList*)list;
+ListVT *LinkedList__append(List list, void *item) {
+//	printf("Adding: <");
+	//((Node*)item)->vt->fprint((Node*)item, stdout, 0);
+//	printf(">");
+	LinkedList *linkedList = (LinkedList*)list.data;
+	ListNode *listNode = new(ListNode);
+	listNode->value = item;
+	listNode->next = NULL;
 	if(linkedList->start == NULL) {
-		linkedList->start = item;
+		linkedList->start = listNode;
+		linkedList->end = listNode;
 	} else {
-		linkedList->end->next = item;
+		linkedList->end->next = listNode;
+		linkedList->end = listNode;
 	}
-	linkedList->end = item;
-	return list;
+	return list.vt;
 }
 
-Iterator *LinkedList__get_iterator(List *list) {
-	LinkedListIterator *iter = new(LinkedListIterator);	
-	iter->vt = &linkedListIteratorVT;
-	iter->current = ((LinkedList*)list)->start;
-	return (Iterator*)iter;
+Iterator LinkedList__get_iter(List list) {
+	LinkedListIterData *data = new(LinkedListIterData);
+	data->super.cur = ((LinkedList*)list.data)->start->value;
+	data->currentNode = *((LinkedList*)list.data)->start;
+	return (Iterator) {
+		.vt = &linkedListIteratorVT,
+		.data = (IterData*)data
+	};
 }
 // V Table
 ListVT linkedListVT = {
 	.append = LinkedList__append,
-	.get_iterator = LinkedList__get_iterator
+	.get_iter = LinkedList__get_iter
 };
 // LinkedListIterator
 
-void *LinkedListIterator__next(List *list) {
-	return NULL;
+bool LinkedListIterator__next(Iterator iter) {
+	LinkedListIterData *data = (LinkedListIterData*)iter.data;
+	if(data->currentNode.next == NULL)
+		return false;
+	data->currentNode = *data->currentNode.next;
+	iter.data->cur = data->currentNode.value;
+	return true;
 }
 
 // V Table

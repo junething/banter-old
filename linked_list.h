@@ -11,24 +11,23 @@ struct ListNode {
 };
 
 typedef struct {
-	ListVT *vt;
     ListNode* start;
     ListNode* end;
 } LinkedList;
 typedef struct {
-	IteratorVT *vt;
-    ListNode* start;
-    ListNode* end;
     ListNode* current;
 } LinkedListIterator;
-
-void *LinkedListIterator__next(List *list);
+typedef struct {
+	IterData super;
+	ListNode currentNode;
+} LinkedListIterData;
+bool LinkedListIterator__next(Iterator iter);
 
 IteratorVT linkedListIteratorVT;
 
 LinkedList *LinkedList__new();
-List *LinkedList__append(List *list, void *item);
-Iterator *LinkedList__get_iterator(List *list);
+ListVT *LinkedList__append(List list, void *item);
+Iterator LinkedList__get_iter(List list);
 
 ListVT linkedListVT;
 #endif

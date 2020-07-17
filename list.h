@@ -6,21 +6,24 @@ typedef struct ListVT ListVT;
 typedef struct Iterator Iterator;
 typedef struct IteratorVT IteratorVT;
 typedef struct ListIteratorVT ListIterator;
+typedef struct {
+	void *cur;
+} IterData;
 struct List {
 	ListVT *vt;
 	void *data;
 };
 struct Iterator {
 	IteratorVT *vt;
-	void *data;
+	IterData *data;
 };
 struct IteratorVT {
-	void* (*next)(List* list);
+	bool (*next)(Iterator iter);
 };
 struct ListVT {
-	List* (*append)(List *list, void *item);
-	Iterator* (*get_iterator)(List *list);
-	int (*length)(List *list);
+	ListVT *(*append)(List list, void *item);
+	Iterator (*get_iter)(List list);
+	int (*length)(List list);
 };
-List *List__new();
+List List__new();
 #endif

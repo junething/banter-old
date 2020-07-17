@@ -32,29 +32,39 @@ typedef struct {
 } UnaryMessage;
 typedef struct {
 	COMMON_NODE_FIELDS	
+	Node *lhs;
+	char *op;
+	Node *rhs;
+} BinaryMessage;
+typedef struct {
+	COMMON_NODE_FIELDS	
 	Node *object;
-	List *keywords;
-	List *arguments;
+	List keywords;
+	List arguments;
 } KeywordMessage;
 typedef struct {
 	COMMON_NODE_FIELDS	
-	List *nodes;
+	List nodes;
 } Code;
 
 Symbol *Symbol__new();
 void Symbol__fprint(Node* node, FILE* dest, PrintOptions options);
 
-Code *Code__new();
+Code *Code__new(List nodes);
 void Code__fprint(Node* node, FILE* dest, PrintOptions options);
 
-KeywordMessage *KeywordMessage__new(Node *object, List *keywords, List *arguments);
+KeywordMessage *KeywordMessage__new(Node *object, List keywords, List arguments);
 void KeywordMessage__fprint(Node* node, FILE* dest, PrintOptions options);
 
 UnaryMessage *UnaryMessage__new(Node *object, char *message);
 void UnaryMessage__fprint(Node* node, FILE* dest, PrintOptions options);
 
+BinaryMessage *BinaryMessage__new(Node *lhs, char *op, Node *rhs);
+void BinaryMessage__fprint(Node* node, FILE* dest, PrintOptions options);
+
 NodeVT symbolVT;
 NodeVT codeVT;
 NodeVT keywordMessageVT;
 NodeVT unaryMessageVT;
+NodeVT binaryMessageVT;
 #endif

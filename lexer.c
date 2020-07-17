@@ -3,11 +3,12 @@
 #include "macros.h"
 #include "misc.h"
 #include "term_colors.h"
+
 Lexer *Lexer__new (FILE *source) {
 	printf("Lexer created\n");
 	Lexer *lexer = new(Lexer);
 	lexer->source = source;
-	lexer->state = LEX_NORMAL;
+	lexer->state = LEX_NORM;
 	return lexer;
 }
 TokenType special_op(char ch) {
@@ -22,6 +23,9 @@ TokenType special_op(char ch) {
 			return BLOCK_OPEN;
 		case ']':
 			return BLOCK_CLOSE;
+		case '+':
+			return OPERATOR_MSG;
+
 	}
 	return BAD;
 }
@@ -107,19 +111,19 @@ Token Lexer__next(Lexer *lexer) {
 		// printf("%c ", ch);
 		bufferInd++;
 		TokenType specOpType = BAD;
-		if(ch == '\'' && lexer->state == LEX_NORMAL) {
-			lexer->state = LEX_STRING;
+		if(ch == '\'' && lexer->state == LEX_NORM) {
+			lexer->state = LEX_STR;
 			if(bufferInd > 0) {
 				goto retTOK;
 			} else {
 				bufferInd = -1;
 				continue;
 			}
-		} else if(ch == '\'' && lexer->state == LEX_STRING) {
+		} else if(ch == '\'' && lexer->state == LEX_STR) {
 			token.type = STRING_LIT;
-			lexer->state = LEX_NORMAL;
+			lexer->state = LEX_NORM;
 			goto retTOK;
-		} else if(lexer->state == LEX_STRING) {
+		} else if(lexer->state == LEX_STR) {
 			buffer[bufferInd] = ch;
 		} else if(ch == ' ' || ch == '\t') {
 			if(bufferInd > 0) {
@@ -135,7 +139,8 @@ Token Lexer__next(Lexer *lexer) {
 		} else if((specOpType = special_op(ch)) != BAD) {
 			if(bufferInd == 0) {
 				token.type = specOpType;
-				return token;
+				goto retTOK;
+				//return token;
 			} else {
 				token.type = WORD;
 				ungetc(ch, lexer->source);
@@ -149,7 +154,7 @@ Token Lexer__next(Lexer *lexer) {
 		return token;
 	retTOK:
 		buffer[bufferInd] = (char)0;
-		token.str = malloc(strlen(buffer));
+		token.str = malloc(strlen(buffer) + 1);
 		strcpy(token.str, buffer);
 		return token;
 

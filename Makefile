@@ -20,3 +20,6 @@ lacec: *.c *.h
 	clang $(CFLAGS) *.c $(DEFINES) -o banter
 clean:
 	rm -f *.o lacec
+
+list_test: *list*.c
+	clang $(CFLAGS) -g list.c linked_list.c testing/list_test.c $(DEFINES) -o list_test

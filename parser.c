@@ -12,6 +12,7 @@ Parser *Parser__new(Lexer *lexer) {
 }
 bool Parser__next(Parser *parser) {
 	parser->peek = Lexer__next(parser->lexer);
+	Token__print_color(parser->peek);
 	return true;
 }
 Node *parseValue(Parser *parser) {
@@ -22,7 +23,7 @@ Node *parseValue(Parser *parser) {
 Node *parseUnaryMessage(Parser *parser) {
 	Node *left = parseValue(parser);
 	while(true) {
-		if(parser->peek.type == UNARY_MSG) {
+		if(parser->peek.type == WORD) {
 			Node *newLeft = (Node*)UnaryMessage__new(left, parser->peek.str);
 			Parser__next(parser);
 			left = newLeft;
@@ -32,11 +33,27 @@ Node *parseUnaryMessage(Parser *parser) {
 	}
 	return NULL;
 }
+Node *parseBinOp(Parser *parser) {
+	Node *left = parseUnaryMessage(parser);
+	while(true) {
+		if(parser->peek.type == OPERATOR_MSG) {
+			char* op = parser->peek.str;
+			Parser__next(parser);
+			Node *right = parseUnaryMessage(parser);
+			Node *newLeft = (Node*)BinaryMessage__new(left, op, right);
+			left = newLeft;
+		} else {
+			return left;
+		}
+	}
+	return NULL;
+}	
+
 Node *parseKeyWordMessage(Parser *parser) {
 	Node *left = parseUnaryMessage(parser);
 	if(parser->peek.type == KEYWORD_MSG) {
-		List *keywords = List__new();
-		List *arguments = List__new();
+		List keywords = List__new();
+		List arguments = List__new();
 		while(parser->peek.type == KEYWORD_MSG) {
 			
 		}
@@ -46,12 +63,13 @@ Node *parseKeyWordMessage(Parser *parser) {
 	return left;
 }
 Node *parseExpression(Parser *parser) {
-	return (Node*)parseUnaryMessage;
+	return parseBinOp(parser);
 }
 Node *parseCode(Parser *parser) {
-	List *nodes = List__new();
+	List nodes = List__new();
 	while (parser->peek.type != END_OF_FILE && parser->peek.type != BLOCK_CLOSE) {
-		nodes->vt->append(nodes, parseExpression(parser));
+		Node *node = parseExpression(parser);
+		nodes.vt->append(nodes, node);
 		Parser__next(parser);
 	}
 	Code *code = Code__new(nodes);

@@ -2,7 +2,7 @@
 #define LEXER_HEADER_FILE
 #include "includes.h"
 typedef enum { WORD, UNARY_MSG, KEYWORD_MSG, OPERATOR_MSG, ASSIGN, COMMA, PERIOD, SEMI_COLON, END_OF_FILE, NEWLINE, BAD, BLOCK_OPEN, BLOCK_CLOSE, STRING_LIT, NUMBER } TokenType;
-typedef enum { LEX_NORMAL, LEX_STRING, LEX_COMMENT } LexState;
+typedef enum { LEX_NORM, LEX_WRD, LEX_OP, LEX_STR, LEX_COM } LexState;
 typedef struct {
 	FILE *source;
 	LexState state;
