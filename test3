@@ -1,0 +1,7 @@
+condition	ifTrue: [
+	openFile save.
+	Program exit
+	]
+	ifFalse: [
+		something exec
+	].
