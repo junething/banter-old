@@ -48,6 +48,10 @@ ListVT linkedListVT = {
 
 bool LinkedListIterator__next(Iterator iter) {
 	LinkedListIterData *data = (LinkedListIterData*)iter.data;
+	if(!data->doneFirst) {
+		data->doneFirst = true;
+		return true;
+	}
 	if(data->currentNode.next == NULL)
 		return false;
 	data->currentNode = *data->currentNode.next;

@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
 	IterData super;
 	ListNode currentNode;
+	bool doneFirst;
 } LinkedListIterData;
 bool LinkedListIterator__next(Iterator iter);
 

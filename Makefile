@@ -23,3 +23,6 @@ clean:
 
 list_test: *list*.c
 	clang $(CFLAGS) -g list.c linked_list.c testing/list_test.c $(DEFINES) -o list_test
+
+json_stuff: *.c *.h
+	./make_compilation_database.bash

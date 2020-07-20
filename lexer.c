@@ -23,11 +23,29 @@ TokenType special_op(char ch) {
 			return BLOCK_OPEN;
 		case ']':
 			return BLOCK_CLOSE;
+		case '(':
+			return PAREN_OPEN;
+		case ')':
+			return PAREN_CLOSE;
 		case '+':
 			return OPERATOR_MSG;
 
 	}
 	return BAD;
+}
+LexState charCat(char c) {
+	if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == ':')
+		return LEX_WRD;
+	char *symbols = "~!@#$%^&*_+-=|<>,/?";
+	if(strchr(symbols, c) != NULL)
+		return LEX_SYM;
+	char *specialSymbols = "()[]{};.\n";
+	if(strchr(specialSymbols, c) != NULL)
+		return LEX_SPSYM;
+	if(c == ' ' || c == '\t')
+		return LEX_WSP;
+	ERROR("Dunno waht '%c' is\n", c);
+	return LEX_WSP;
 }
 char *TokenType__name (TokenType tokType) {
 	switch(tokType) {
@@ -44,6 +62,8 @@ char *TokenType__name (TokenType tokType) {
 		case BAD: return "BAD";
 		case BLOCK_OPEN: return "BLOCK_OPEN";
 		case BLOCK_CLOSE: return "BLOCK_CLOSE";
+		case PAREN_OPEN: return "PAREN_OPEN";
+		case PAREN_CLOSE: return "PAREN_CLOSE";
 		case STRING_LIT: return "STRING_LIT";
 		case NUMBER: return "NUMBER";
 	}
@@ -65,97 +85,84 @@ char *Token__to_string (Token tok) {
 		case NEWLINE: return "\n";
 		case BLOCK_OPEN: return "[";
 		case BLOCK_CLOSE: return "]";
+		case PAREN_OPEN: return "(";
+		case PAREN_CLOSE: return ")";
 		case BAD: return "(BAD)";
 	}
 }
 void Token__print_color (Token tok) {
 	switch(tok.type) {
 		case WORD:
-			printfc(GREEN, " %s", Token__to_string(tok));
+			fprintfc(stdout, GREEN, "%s", Token__to_string(tok));
 			break;
 		case BLOCK_OPEN:
 		case BLOCK_CLOSE:
 		case UNARY_MSG:
 		case KEYWORD_MSG:
-			printfc(WHITE, " %s", Token__to_string(tok));
+		case PAREN_OPEN:
+		case PAREN_CLOSE:
+			fprintfc(stdout, WHITE, "%s", Token__to_string(tok));
 			break;
 		case OPERATOR_MSG:
 		case ASSIGN:
-			printfc(MAGENTA, " %s", Token__to_string(tok));
+			fprintfc(stdout, MAGENTA, "%s", Token__to_string(tok));
 			break;
 		case SEMI_COLON:
 		case COMMA:
 		case PERIOD:
-			printfc(MAGENTA, "%s", Token__to_string(tok));
+			fprintfc(stdout, MAGENTA, "%s", Token__to_string(tok));
 			break;
 		case STRING_LIT:
-			printfc(YELLOW, " \"%s\"", Token__to_string(tok));
+			fprintfc(stdout, YELLOW, "\"%s\"", Token__to_string(tok));
 			break;
 		case NUMBER:
-			printfc(CYAN, "%s", Token__to_string(tok));
+			fprintfc(stdout, CYAN, "%s", Token__to_string(tok));
 			break;
 		case BAD:
 		case END_OF_FILE:
-			printfc(BACKGROUND(RED), "%s", Token__to_string(tok));
+			fprintfc(stdout, BACKGROUND(RED) + BLACK, "%s", Token__to_string(tok));
 			break;
 		case NEWLINE:
-			printf("%s", Token__to_string(tok));
+			fprintf(stdout, "%s", Token__to_string(tok));
 	}
 }
 Token Lexer__next(Lexer *lexer) {
 	char buffer[50] = {0};
 	char ch;
-	int bufferInd = -1;
-	Token token;
+	int bufferInd = 0;
+	LexState lastCharState = LEX_NORM;
+	lexer->state = LEX_NORM;
 	while((ch = getc(lexer->source)) != EOF) {
 		// printf("%c ", ch);
-		bufferInd++;
-		TokenType specOpType = BAD;
-		if(ch == '\'' && lexer->state == LEX_NORM) {
-			lexer->state = LEX_STR;
-			if(bufferInd > 0) {
-				goto retTOK;
-			} else {
-				bufferInd = -1;
-				continue;
-			}
-		} else if(ch == '\'' && lexer->state == LEX_STR) {
-			token.type = STRING_LIT;
-			lexer->state = LEX_NORM;
-			goto retTOK;
-		} else if(lexer->state == LEX_STR) {
-			buffer[bufferInd] = ch;
-		} else if(ch == ' ' || ch == '\t') {
-			if(bufferInd > 0) {
-				token.type = WORD;
-				goto retTOK;
-			} else {
-				bufferInd = -1;
-				continue;
-			}
-		} else if(ch == ':') {
-			token.type = KEYWORD_MSG;
-			goto retTOK;
-		} else if((specOpType = special_op(ch)) != BAD) {
-			if(bufferInd == 0) {
-				token.type = specOpType;
-				goto retTOK;
-				//return token;
-			} else {
-				token.type = WORD;
-				ungetc(ch, lexer->source);
-				goto retTOK;
-			}
+		LexState charState = charCat(ch);
+		if(lastCharState == LEX_NORM && charState == LEX_WSP)
+			continue;
+		if(lastCharState == LEX_NORM)
+			lastCharState = charState;
+		switch(lastCharState) {
+			case LEX_NORM:
+			case LEX_WRD:
+			case LEX_SYM:
+				if(charState != lastCharState) {
+					if(charState != LEX_WSP)
+						ungetc(ch, lexer->source);
+					TokenType tokType = (lastCharState == LEX_WRD) ? WORD : OPERATOR_MSG;
+					return (Token){.type = tokType, .str = strdup(buffer)};
+				} else if (ch == ':' && lastCharState == LEX_WRD) {
+					return (Token){.type = KEYWORD_MSG, .str = strdup(buffer)};
+				} else {
+					buffer[bufferInd++] = ch;	
+				}
+				break;
+			case LEX_SPSYM:
+				return (Token){.type = special_op(ch), .str = NULL};
+			case LEX_STR:
+			case LEX_COM:
+			case LEX_WSP:
+				ERROR("UH");
+				break;
 		}
-		buffer[bufferInd] = ch;
+		lastCharState = charState;
 	}
-	//retEOF:
-		token.type = END_OF_FILE;
-		return token;
-	retTOK:
-		buffer[bufferInd] = (char)0;
-		token.str = malloc(strlen(buffer) + 1);
-		strcpy(token.str, buffer);
-		return token;
-
+	return (Token){.type = END_OF_FILE, .str = strdup(buffer) };
 }

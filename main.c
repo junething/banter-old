@@ -4,12 +4,13 @@
 #include "macros.h"
 #include "nodes.h"
 int main(int argc, char **argv) {
+	logFile = fopen("log", "w");
 	printf("Lexing: %s\n", argv[1]);
-    FILE *source = fopen(argv[1], "r");
+   	FILE *source = fopen(argv[1], "r");
 	Lexer *lexer = Lexer__new(source);
 	Parser *parser = Parser__new(lexer);
 	Node* code = Parser__parse(parser);
-	code->vt->fprint(code, stdout, PO_COLOR);
+	code->vt->fprint(code, PrintData__new(stdout, PO_COLOR));
 	return 0;
 	while(true) {
 		Token token = Lexer__next(lexer);

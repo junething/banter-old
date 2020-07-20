@@ -1,0 +1,16 @@
+Struct new: Dog
+	age: int;
+	color: Color;
+	energy: int;
+	happiness: int.
+Dog impl
+	feed: Weight food: Food do: [
+		energy + Food joules
+	];
+	pat: None do: [
+		happiness increment
+	];
+	walk: Distance do: [
+		happiness increment.
+		energy decreament
+	].

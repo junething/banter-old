@@ -7,6 +7,8 @@ typedef struct {
 	int something;	
 	Token peek;
 	Lexer* lexer;
+	int line;
+	bool justHadNL;
 } Parser;
 
 Node *Parser__parse(Parser *parser);
