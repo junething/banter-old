@@ -1,0 +1,19 @@
+Struct new: Dog def: (
+	fld age: int,
+	fld color: Color,
+	fld energy: int,
+	fld method: arg,
+	fld happiness: int
+).
+Dog impl: (
+	met feed: Weight food: Food do: [
+		energy + Food joules
+	],
+	met pat: None do: [
+		happiness increment
+	],
+	met walk: Distance do: [
+		happiness increment.
+		energy decreament
+	]
+).

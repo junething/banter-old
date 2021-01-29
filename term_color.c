@@ -12,7 +12,7 @@ int fprintfc(FILE *dest, int color, const char* format, ...) {
 	int bgColorCode = (color >> (sizeof(int) * 4)) + 29;
 	int fgColorCode = (color & 65535) + 29;
 
-	LOG("%d %d", bgColorCode, fgColorCode);
+	//LOG("%d %d", bgColorCode, fgColorCode);
 	if(fgColorCode > 29)
 		printf("\x1b[%d%sm", fgColorCode, ""); 
 	if(bgColorCode > 39)

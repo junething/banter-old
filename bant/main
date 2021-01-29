@@ -1,0 +1,5 @@
+int extend print do: [ c printf arg: '%d' arg: self. ].
+string extend print do: [ c printf arg: '%s' arg: self. ].
+Program extend main do: [
+	6 print.
+].

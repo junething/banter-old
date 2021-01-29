@@ -1,0 +1,12 @@
+Struct new: Dog $
+	age: int;
+	color: Color;
+	energy: int;
+	method: arg;
+	happiness: int.
+
+(number switch)
+	case: 6 do: [ code things ];
+	case: 7 do: [ do stuff ];
+	case: 8 do: [ more things ]; 
+	case: (9) do: [ more things ].

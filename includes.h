@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <wchar.h>
 #include <sys/wait.h>
+#include <signal.h>
 //#include <pthread.h>
 //#include <signal.h>
 //#include <netdb.h>

@@ -1,2 +1,8 @@
 *.dSYM
 .DS_Store
+*.swp
+compilation_database
+compile_commands.json
+.cquery
+.cquery_cache
+.vscode

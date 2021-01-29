@@ -1,0 +1,1 @@
+9 == 5 ifTrue: [ 5 ] ifFalse: [ 8. 7 ]

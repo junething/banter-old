@@ -1,4 +1,5 @@
-#include "includes.h"
+#include "stdheader.h"
+
 char *stradd(char *left, char *right) {
 	char *new_str ;
 	new_str = malloc(strlen(left)+strlen(right)+1);
@@ -7,7 +8,8 @@ char *stradd(char *left, char *right) {
     strcat(new_str, right);
     return new_str;
 }
-char *strjoin(char *first,...) {
+char *strjoin(char *first,...)
+{
     va_list arg_ptr;
     int length = strlen(first);
 

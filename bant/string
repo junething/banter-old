@@ -1,0 +1,15 @@
+string extend '+': string $ return: string do: [
+	let num = 9 + 7.
+	^c strjoin arg: self arg: other.
+].
+string extend print return: int do: [
+	c printf arg: self.
+	^0.
+].
+Program extend main return: int do: [
+	let first_name = 'jarrah'.
+	let last_name = 'love'.
+	let full_name = first_name + ' ' + last_name.
+	full_name print.
+	^ 1.
+].

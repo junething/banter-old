@@ -1,0 +1,2 @@
+int extend print do: [ c printf arg: '%s' arg: self. ].
+7 print.

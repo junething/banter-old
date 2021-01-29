@@ -1,28 +1,32 @@
 .PHONY: all debug
 .DEFAULT: all
-CFLAGS = -Wall -pedantic -Werror -std=gnu99 # -pthread
-all: lacec
-debug: CFLAGS += -g
-debug: DEFINES += -D LOGGING
-debug: clean
-debug: lacec
+CFLAGS = -Wall -Werror -std=c99 # -pthread
+COMPILER = clang -Wall -Werror -std=c99
+all: banter
+debug: COMPILER += -g
+debug: COMPILER += -D LOGGING
+debug: banter
 
-asan: CFLAGS += -fsanitize=address -g
-asan: lacec
+asan: COMPILER += -fsanitize=address -g
+asan: COMPILER += -D LOGGING
+asan: banter
 
-msan: CFLAGS += -fsanitize=memory -fPIE -pie -fno-omit-frame-pointer -g -O2
-msan: lacec
+msan: COMPILER += -fsanitize=memory -fPIE -pie -fno-omit-frame-pointer -g -O2
+msan: banter
 
-lsan: CFLAGS += -fsanitize=leak  -g
-lsan: lacec
+lsan: COMPILER += -fsanitize=leak  -g
+lsan: banter
 
-lacec: *.c *.h 
-	clang $(CFLAGS) *.c $(DEFINES) -o banter
+banter: *.c *.h **/*.c
+	$(COMPILER) *.c astnodes/*.c irnodes/*.c $(DEFINES) -o banter
 clean:
-	rm -f *.o lacec
+	rm -f *.o banter
 
-list_test: *list*.c
-	clang $(CFLAGS) -g list.c linked_list.c testing/list_test.c $(DEFINES) -o list_test
+list_test: *.c *.h testing/*.c
+	$(COMPILER) -g list.c testing/list_test.c $(DEFINES) -o list_test
+
+strjoin_test: misc.c misc.h testing/strjoin_test.c
+	$(COMPILER) -g misc.c testing/strjoin_test.c $(DEFINES) -o strjoin_test
 
 json_stuff: *.c *.h
 	./make_compilation_database.bash
