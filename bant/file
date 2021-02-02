@@ -1,3 +1,8 @@
-type bool = type true | type false
-int extend
-	parse: String returns: int | (struct parseError: String) 
+File extend write: string $ do: [
+	c fputs arg: write arg: self.
+].
+
+Program extend main $ return: int do: [
+	self out write: 'Hello World!'.
+	^0.
+].

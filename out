@@ -1,0 +1,22 @@
+#include "source/stdheader.h"
+int Program_main(Program self);
+string string_add(string self, string other);
+int string_print(string self);
+int Program_main(Program self) {
+    string first_name = "jarrah";
+    string last_name = "love";
+    string full_name = string_add(string_add(first_name, " "), last_name);
+    string_print(full_name);
+    return 1;
+}
+string string_add(string self, string other) {
+    return strjoin(self, other, NULL);
+}
+int string_print(string self) {
+    puts(self);
+    return 0;
+}
+int main(int argc, char **argv) {
+	Program_main(NULL);
+	return 0;
+}

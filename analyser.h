@@ -8,6 +8,7 @@
 typedef struct {
 	PrintData *printData;	
 	Block* currentBlock;
+	BanterType **types;
 } Analysis;
 
 void analyse (ASTNode* code);

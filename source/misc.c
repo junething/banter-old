@@ -1,5 +1,4 @@
 #include "stdheader.h"
-
 char *stradd(char *left, char *right) {
 	char *new_str ;
 	new_str = malloc(strlen(left)+strlen(right)+1);

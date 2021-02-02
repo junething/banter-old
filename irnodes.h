@@ -15,11 +15,12 @@ struct Variable {
 	BanterType *type;
 	void *value;
 };
+Variable *Variable__new(char* name, BanterType *type);
 
 typedef struct {
 	int sdag;
 } IRNodeVT;
-typedef enum { IRN_NONE, IRN_IF, IRN_SBO, IRN_MET_CALL, IRN_SYM, IRN_CODE, IRN_INT, IRN_DEC, IRN_NOOP, IRN_PRIM, IRN_CALL, IRN_RET } IRNodeType; 
+typedef enum { IRN_NONE, IRN_IF, IRN_FOR, IRN_SBO, IRN_MET_CALL, IRN_SYM, IRN_CODE, IRN_INT, IRN_DEC, IRN_NOOP, IRN_PRIM, IRN_CALL, IRN_RET, IRN_INIT, IRN_FIELD_ACC } IRNodeType; 
 #define IRNODE_HEADER		\
 	IRNodeType type; 		\
 	ASTNode *astNode; 		\
@@ -37,11 +38,22 @@ struct IRNode {
 	IRNODE_HEADER
 };
 typedef struct {
+	char* key;
+	IRNode *ir;
+} KeyIRNode;
+typedef struct {
 	IRNODE_HEADER
 	IRNode *condition;
 	IRNode *ifTrue;
 	IRNode *ifFalse;
 } IfIRNode;
+typedef struct {
+	IRNODE_HEADER
+	IRNode *from;
+	IRNode *to;
+	IRNode *body;
+	char *varName;
+} ForLoopIRNode;
 typedef enum { SBO_ADD, SBO_SUB, SBO_MUL, SBO_DIV, SBO_MOD, SBO_OR, SBO_AND, SBO_XOR, SBO_EQU, SBO_ASS } StandardBinaryOperator;
 typedef struct { 
 	IRNODE_HEADER
@@ -51,12 +63,10 @@ typedef struct {
 	IRNODE_HEADER
 	IRNode *value;
 } ReturnIRNode;
-
 typedef struct { 
 	IRNODE_HEADER
-	IRNode *value;
-	int number;
-} ReturnIRNode2;
+	KeyIRNode *fields;
+} InitialiserIRNode;
 typedef struct { 
 	IRNODE_HEADER
 	PrimativeUnion value;
@@ -74,6 +84,13 @@ typedef struct {
 	IRNode *self;
 	IRNode **parameters;
 } MethodCallIRNnode;
+typedef struct {
+	IRNODE_HEADER;
+	//IRNode *field;
+	char *name;
+	IRNode *object;
+	bool arrow;
+} FieldAccessIRNnode;
 typedef struct {
 	IRNODE_HEADER;
 	IRNode **statements; //list

@@ -26,6 +26,15 @@ FILE* logFile;
     putc('\n', logFile);                                                      \
     fflush(logFile); } } while(0)
 
+#define LOG_PART(...) do { if(logFile != NULL) {                                   \
+    fprintf(logFile, __VA_ARGS__);                                            \
+    fflush(logFile); } } while(0)
+
+#define LOG_FIN(...) do { if(logFile != NULL) {                                   \
+    fprintf(logFile, __VA_ARGS__);                                            \
+    putc('\n', logFile);                                                      \
+    fflush(logFile); } } while(0)
+
 #define LOG_START(...) do { if(logFile != NULL) {                             \
     fprintf(logFile, "\033[31;1;4m[%s:%d]\033[0m:\t", __FILE__, __LINE__);    \
     fprintf(logFile, __VA_ARGS__);                                            \
@@ -38,6 +47,8 @@ FILE* logFile;
 #define ERROR_END() 
 #define LOG(...)
 #define LOG_START(...)
+#define LOG_PART(...)
+#define LOG_FIN(...)
 #endif
 
 #endif

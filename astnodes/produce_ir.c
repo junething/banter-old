@@ -14,7 +14,7 @@ IRNode *ReturnNode__produce_ir(ASTNode* node, Analysis *analysis) {
 	ReturnNode *ast = (ReturnNode*)node;
 	ReturnIRNode *ir = new(ReturnIRNode);
 	ir->type = IRN_RET;
-	ir->value = ast->value->vt->produce_ir(node, analysis);
+	ir->value = ast->value->vt->produce_ir(ast->value, analysis);
 	return (IRNode*)ir;
 		
 	PrimativeIRNode *irnode = new(PrimativeIRNode);
@@ -24,13 +24,14 @@ IRNode *ReturnNode__produce_ir(ASTNode* node, Analysis *analysis) {
 	irnode->banterType = stringType;
 	return (IRNode*)irnode;
 }
-BanterType *Message__getType(Message messageTagged, ASTNode *receiver, Analysis *analysis, bool* isExtension) {
+MessageTemplate *Message__getTemplate(Message messageTagged, ASTNode *receiver, Analysis *analysis, bool* isExtension) {
 	BanterType *type;
 	if(messageTagged.type == MSG_BINARY_OP && strcmp(messageTagged.list[0].key, "=") == 0) {
 		type = receiver->type;
+		return MessageTemplate__new(MSG_BINARY_OP, type);
 	} else {
 		Hashmap accepts = receiver->type->acceptsMessages;
-		LOG("looking at %s", receiver->type->name);
+		//LOG("looking at %s", receiver->type->name);
 		MessageTemplate *messageTemplate = (MessageTemplate*)Hashmap_get(&accepts, messageTagged.name);
 		if(messageTemplate == NULL && !receiver->type->allowAnyMessage) {
 			ERROR_START("Message '%s' not found on (%s)", messageTagged.list[0].key, receiver->type->name);
@@ -45,9 +46,11 @@ BanterType *Message__getType(Message messageTagged, ASTNode *receiver, Analysis 
 			type = messageTemplate->returns;
 		} else {
 			type = voidType;
+			messageTemplate = MessageTemplate__new(MSG_UNARY, type);
 		}
+		return messageTemplate;
 	}
-	LOG("%s", type->name);
+	//LOG("%s", type->name);
 	/*KeyNodeValue *message = messageTagged.list;
 	switch(messageTagged.type) {
 		case MSG_KEYWORD:;
@@ -65,9 +68,12 @@ BanterType *Message__getType(Message messageTagged, ASTNode *receiver, Analysis 
 		case MSG_UNARY_OP:
 			break;
 	}*/
-	return type;
+	ERROR("err");
+	return NULL;
 }
 IRNode *MessageSend__produce_ir(ASTNode* node, Analysis *analysis) {
+	if(node->vt != &MessageSendVT)
+		ERROR("Not a MessageSend");
 	MessageSend *msgsend = (MessageSend*)node;
 	if(msgsend->receiver->type->produce_ir_overload != NULL) {
 		return msgsend->receiver->type->produce_ir_overload(msgsend, analysis);
@@ -75,7 +81,8 @@ IRNode *MessageSend__produce_ir(ASTNode* node, Analysis *analysis) {
 	//msgsend->receiver->vt->produce_ir(msgsend->receiver, analysis);
 	Message msg = msgsend->message;
 	bool isExtension = false;
-	node->type = Message__getType(msg, msgsend->receiver, analysis, &isExtension);
+	MessageTemplate *messageTemplate = Message__getTemplate(msg, msgsend->receiver, analysis, &isExtension);
+	node->type = messageTemplate->returns;
 	IRNode* irnode;
 	if(msg.type == MSG_BINARY_OP && !isExtension) {
 		StandardBinaryOperatorIRNode *sboirnode = new(StandardBinaryOperatorIRNode);
@@ -91,8 +98,10 @@ IRNode *MessageSend__produce_ir(ASTNode* node, Analysis *analysis) {
 			sboirnode->op = SBO_EQU;
 		} else if(strcmp(op, "=") == 0) {
 			sboirnode->op = SBO_ASS;
+		} else if(strcmp(op, "%") == 0) {
+			sboirnode->op = SBO_MOD;
 		} else {
-			ERROR("unfinished");
+			ERROR("Unknow operator '%s'", op);
 		}
 		irnode = (IRNode*)sboirnode;
 	} else if (strcmp(msgsend->message.name, "ifTrue:") == 0 || strcmp(msgsend->message.name, "ifTrue:ifFalse:") == 0) {
@@ -104,6 +113,40 @@ IRNode *MessageSend__produce_ir(ASTNode* node, Analysis *analysis) {
 			ifIRNode->ifFalse= msgsend->message.list[1].value->vt->produce_ir(msgsend->message.list[1].value, analysis);
 		}
 		irnode = (IRNode*)ifIRNode;
+	} else if(node->type == RangeType && strcmp(msgsend->message.name, "do:") == 0) {
+		ForLoopIRNode *forLoopIRNode = new(ForLoopIRNode);
+		forLoopIRNode->type = IRN_FOR;
+		IRNode *range = msgsend->receiver->vt->produce_ir(msgsend->receiver, analysis);
+		FieldAccessIRNnode *from = new(FieldAccessIRNnode);
+		from->type = IRN_FIELD_ACC;
+		from->object = range;
+		from->name = "from";
+		forLoopIRNode->from = (IRNode*)from;
+
+		FieldAccessIRNnode *to = new(FieldAccessIRNnode);
+		to->type = IRN_FIELD_ACC;
+		to->object = range;
+		to->name = "to";
+		forLoopIRNode->to = (IRNode*)to;
+
+		Block* block = (Block*)msgsend->message.list[0].value;
+		if(block->vt != &BlockVT)
+			ERROR("Not a block");
+		forLoopIRNode->body = msgsend->message.list[0].value->vt->produce_ir(msgsend->message.list[0].value, analysis);
+		if(list_len(block->parameters.list) > 0)
+			forLoopIRNode->varName = block->parameters.list[0].key;
+		else
+			forLoopIRNode->varName = "i";
+
+		irnode = (IRNode*)forLoopIRNode;
+	} else if (messageTemplate->implementation == MSG_IMP_FIELD) {
+		FieldAccessIRNnode *access = new(FieldAccessIRNnode);
+		if(msgsend->receiver->type->reference)
+			access->arrow = true;
+		access->type = IRN_FIELD_ACC;
+		access->name = msgsend->message.name;
+		access->object = msgsend->receiver->vt->produce_ir(msgsend->receiver, analysis);
+		irnode = (IRNode*)access;
 	} else {
 		CallIRNode *call = new(CallIRNode);
 		irnode = (IRNode*)call;

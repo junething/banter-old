@@ -1,9 +1,8 @@
 string extend '+': string $ return: string do: [
-	let num = 9 + 7.
-	^c strjoin arg: self arg: other.
+	^c strjoin arg: self arg: other arg: NULL.
 ].
 string extend print return: int do: [
-	c printf arg: self.
+	c puts arg: self.
 	^0.
 ].
 Program extend main return: int do: [

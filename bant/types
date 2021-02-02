@@ -1,0 +1,3 @@
+Type new: 'Range' $
+	from: int;
+	to: int.

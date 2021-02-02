@@ -29,6 +29,15 @@ char* convert_name(char* name) {
 				case '/':
 					r = "div";
 					break;
+				case '>':
+					r = "gt";
+					break;
+				case '=':
+					r = "eq";
+					break;
+				case '%':
+					r = "mod";
+					break;
 				case ':':
 					if(c < strlen(name) - 1)
 						r = "_";
@@ -71,6 +80,18 @@ int print_method_head(BanterMethod *met, CompileOptions *options) {
 }
 int compile_type_header(BanterType *type, CompileOptions *options) {
 	Hashmap *m = &type->acceptsMessages;	
+	if(type->userDefined) {
+		fprintf(options->file, "typedef struct {\n");
+  		for (int i = 0; i < m->table_size; i++) {
+    		if (m->data[i].in_use) {
+				MessageTemplate *message = (MessageTemplate*)m->data[i].data;
+    			if(message->implementation != MSG_IMP_FIELD)
+    				continue;
+				fprintf(options->file, "\t%s %s;\n", message->returns->name, m->data[i].key);
+			}
+		}
+		fprintf(options->file, "} %s;\n", type->name);
+	}
 	/* Linear probing */
   	 for (int i = 0; i < m->table_size; i++) {
     	if (m->data[i].in_use) {
@@ -103,10 +124,6 @@ int compile_program_to_c(BanterType** types, CompileOptions *options) {
 	fprintf(options->file,	"#include \"source/stdheader.h\"\n");
 	list_map(types, compile_type_header, options);
 	list_map(types, compile_type_code, options);
-	fprintf(options->file,	"int main(int argc, char **argv) {\n" \
-							"	Program_main(NULL);\n" \
-							"	return 0;\n" \
-							"}\n");
 	return 0;
 }
 
@@ -125,8 +142,21 @@ int compile2c(IRNode *node, CompileOptions *options) {
 				fprintf(options->file, "} else {\n");
 				compile2c(ifNode->ifFalse, options);
 			}
-			fprintf(options->file, "}\n");
-
+			for(int i = 0; i < options->indentation; i++) fprintf(options->file, "    ");
+			fprintf(options->file, "}");
+			node->statement = false;
+			break;
+	case IRN_FOR:;
+			ForLoopIRNode *forNode = (ForLoopIRNode*)node;
+			fprintf(options->file, "for(int %s = ", forNode->varName);
+			compile2c(forNode->from, options);
+			fprintf(options->file, "; %s < ", forNode->varName);
+			compile2c(forNode->to, options);
+			fprintf(options->file, "; %s++) {\n", forNode->varName);
+			compile2c(forNode->body, options);
+			for(int i = 0; i < options->indentation; i++) fprintf(options->file, "    ");
+			fprintf(options->file, "}");
+			node->statement = false;
 			break;
 		case IRN_SBO:;
 			StandardBinaryOperatorIRNode *binOpNode = (StandardBinaryOperatorIRNode*)node;
@@ -145,13 +175,23 @@ int compile2c(IRNode *node, CompileOptions *options) {
 					continue;
 				for(int i = 0; i < options->indentation; i++) fprintf(options->file, "    ");
 				compile2c(statement, options);
-				fprintf(options->file, ";\n");
+				fprintf(options->file, ";");
+				fprintf(options->file, "\n");
 			}
 			options->indentation--;
 			break;
 		case IRN_INT:;
 			IntIRNode *intIRNode = (IntIRNode*)node;
 			fprintf(options->file, "%d", intIRNode->value);
+			break;
+		case IRN_FIELD_ACC:;
+			FieldAccessIRNnode *access = (FieldAccessIRNnode*)node;
+			if(access->object != NULL) {
+				compile2c(access->object, options);
+			} else {
+				ERROR("need object");
+			}
+			fprintf(options->file, "%s%s", access->arrow ? "->" : ".", access->name);
 			break;
 		case IRN_CALL:;
 			CallIRNode *call = (CallIRNode*)node;
@@ -209,6 +249,18 @@ int compile2c(IRNode *node, CompileOptions *options) {
 					fprintf(options->file, "%f", prim->value.floating);
 					break;
 			}
+			break;
+		case IRN_INIT:;
+			InitialiserIRNode *init = (InitialiserIRNode*)node;
+			fprintf(options->file, "(%s) { ", init->banterType->name);
+			KeyIRNode kv;
+			for_list(kv, init->fields) {
+				fprintf(options->file, ".%s = ", kv.key);
+				compile2c(kv.ir, options);
+				if(not_last_item(init->fields))
+					fprintf(options->file, ", ");
+			}
+			fprintf(options->file, " }");
 			break;
 		default:;
 			ERROR("Not implementated (%d)", node->type);

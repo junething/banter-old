@@ -1,0 +1,27 @@
+int extend '->': int $ do: [
+	^ Range new from: self to: other.
+] return: Range.
+
+int extend print do: [ c printf arg: '%d' arg: self. ] return: void.
+int extend isZero do: [ ^self == 0.] return: bool.
+
+string extend print do: [
+	c printf arg: '%s' arg: self.
+] return: void.
+string extend '+': string $ return: string do: [
+	^c stradd arg: self arg: other.
+].
+string extend '==': string $ return: bool do: [
+	^c streq arg: self arg: other
+].
+
+Program extend main return: int do: [
+	1 -> 100 do: [ num: int.
+		let str = ''.
+		(num % 3) isZero ifTrue: [ str = 'fizz'. ].
+		(num % 5) isZero ifTrue: [ str = str + 'buzz'. ].
+		str == '' ifTrue: [ num print. ] ifFalse: [ str print. ].
+		'\n' print.
+	].
+	^ 0.
+]

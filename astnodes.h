@@ -70,6 +70,8 @@ typedef struct {
 	bool inParens;			\
 	bool statement;			\
 	BanterType* type;		\
+	void *analysisDataPass;	\
+	BanterValue CTE_value;	\
 	char *file;
 
 struct ASTNode {
@@ -117,6 +119,7 @@ typedef struct {
 struct Block {
 	COMMON_NODE_FIELDS
 	Code *code;
+	Message parameters;
 	Hashmap scopeSymbols;
 	int scopeID;
 	struct Block *parent;

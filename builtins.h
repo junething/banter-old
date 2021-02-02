@@ -5,13 +5,19 @@
 #include "banter_type.h"
 BanterType *intType;
 BanterType *boolType;
+BanterType *FileType;
 BanterType *voidType;
 BanterType *methodType;
 BanterType *letType;
+BanterType *RangeType;
 BanterType *ProgramType;
 BanterType *stringType;
 BanterType *typeType;
 BanterType *cType;
+BanterType *typeBuilderType;
 BanterType *typeExtendType;
+BanterType *BlockType;
+BanterType *initialiserType;
+BanterType *methodDefineType;
 void initBuiltins(void);
 #endif

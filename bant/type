@@ -1,0 +1,21 @@
+Type new: 'Point' $
+	x: int
+	y: int.
+Point extend print do: [
+	c printf arg: '(%d, %d)' arg: self x arg: self y.
+].
+
+Point extend '+': Point $ do: [
+	^Point new x: self x + other x y: self y + other y.
+] return: Point.
+
+Point extend '-': Point $ do: [
+	^Point new x: self x - other x y: self y - other y.
+] return: Point.
+
+Program extend main return: int do: [
+	let p1 = Point new x: 2 y: 7.
+	let p2 = Point new x: 8 y: 3.
+	p1 - p2 $ print.
+	^0.
+].

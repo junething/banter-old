@@ -20,6 +20,12 @@ DEC_ASTNODE_VTABLES(Block);
 DEC_ASTNODE_VTABLES(PrimativeNode);
 DEC_ASTNODE_VTABLES(ReturnNode);
 
+Variable *Variable__new(char* name, BanterType *type) {
+	Variable *var = new(Variable);
+	var->name = name;
+	var->type = type;
+	return var;
+}
 Symbol *Symbol__new(char *str) {
 	Symbol *sym = new(Symbol);
 	sym->vt = &SymbolVT;

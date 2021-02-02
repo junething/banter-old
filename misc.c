@@ -16,8 +16,9 @@ char *strjoin(char *first,...) {
     va_start(arg_ptr, first);     /*initialize the arg_ptr*/
     while(true) {
     	char* curstr = va_arg(arg_ptr, char*);
-    	if(curstr == NULL)
-    		break;
+    	if(curstr == NULL) {
+			break;
+		}
 		length += strlen(curstr);
     }
     va_end(arg_ptr);

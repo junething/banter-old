@@ -11,6 +11,7 @@
 #include "compiling.h"
 ASTNode *parseExpression(Parser *parser);
 Code *parseCode(Parser *parser);
+Message parseKeyWordMessage(Parser *parser);
 
 ASTNode *parse(Lexer *lexer, CompileOptions *compile_options) {
 	Parser *parser = Parser__new(lexer, compile_options->verbose & STEP_PARSE);
@@ -64,11 +65,20 @@ ASTNode *parseValue(Parser *parser) {
 		consume(parser, PAREN_CLOSE);
 		return expr;
 	} else if(if_tok_consume(parser, BLOCK_OPEN)) {
+		Message blockArguments = {};
+		if(parser->peek.type == KEYWORD_MSG) {
+			blockArguments = parseKeyWordMessage(parser);
+			consume(parser, PERIOD);
+		//	LOG("peeking %s", parser->peek);
+		}
 		Code *blockCode = (Code*)parseCode(parser);
 		consume(parser, BLOCK_CLOSE);
-		return (ASTNode*)Block__new(blockCode);
+
+		Block *block = Block__new(blockCode);
+		block->parameters = blockArguments;
+		return (ASTNode*)block;
 	} else if(parser->peek.str == NULL) {
-		ERROR("Token of type %s has no value", TokenType__name(parser->peek.type));
+		ERROR("Token of type %s has no value on line %d", TokenType__name(parser->peek.type), parser->line);
 	}
 	ASTNode *value;
 	if(parser->peek.type == STRING_LIT) {
@@ -131,7 +141,7 @@ ASTNode *parseBinOpSend(Parser *parser) {
 Message parseAssign(Parser *parser) {
 	char* op = parser->peek.str;
 	Parser__next(parser);
-	ASTNode *right = (ASTNode*)parseBinOpSend(parser);
+	ASTNode *right = (ASTNode*)parseExpression(parser);
 	KeyNodeValue* single = list_alloc(KeyNodeValue);
 	KeyNodeValue knv = (KeyNodeValue){op, right};
 	list_append(single, knv);
@@ -266,9 +276,7 @@ ASTNode* parseReturn(Parser *parser) {
 	LOG("Checking Carrot %s", Token__to_string(parser->peek));
 	if(if_tok_consume(parser, CARROT)) {
 		ASTNode* val = parseList(parser);
-		val->vt->fprint(val, PrintData__new(stdout, PO_COLOR));
 		ReturnNode *ret = ReturnNode__new(val);
-		LOG("ret:");
 		ret->vt->fprint((ASTNode*)ret, PrintData__new(stdout, PO_COLOR));
 		return (ASTNode*)ret;
 	}

@@ -31,11 +31,114 @@ IRNode* method_type_produce_ir_overload(MessageSend* msgSend, Analysis* analysis
 	return (IRNode*)sym;
 }
 BanterType* method_type_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
-	LOG("met");
+	LOG("metfddfghjkladfshjkadfndhkhndfdfahnfdhsafdhjsfdvhjdfsvfnsjlkh");
+	KeyNodeValue knv;
+	for_list(knv, msgSend->message.list) {
+		knv.value->vt->analyse(knv.value, analysis);
+	}
 	//char* name = msgSend->message.name;
 	msgSend->type = methodType;
 	return methodType;	
 }
+
+IRNode* initialiser_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
+	InitialiserIRNode *ir = new(InitialiserIRNode);
+	ir->type = IRN_INIT;
+	ir->banterType = msgSend->receiver->CTE_value.value;
+	KeyNodeValue knv;
+	ir->fields = list_alloc(KeyIRNode);
+	for_list(knv, msgSend->message.list) {
+		LOG("INIT %s", knv.key);
+		list_append(ir->fields, ((KeyIRNode){.key = knv.key, .ir = knv.value->vt->produce_ir(knv.value, analysis)}));
+	}
+	return (IRNode*)ir;
+}
+BanterType* initialiser_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
+	KeyNodeValue keyValue;
+	for_list(keyValue, msgSend->message.list) {
+		keyValue.value->vt->analyse(keyValue.value, analysis);
+		LOG("%s:", keyValue.key);
+		//keyValue.value->vt->fprint(keyValue.value, loggingPrintData);
+	} 
+
+	LOG("analyse init");
+	msgSend->receiver->vt->fprint(msgSend->receiver, analysis->printData);
+	//msgSend->receiver->vt->analyse((ASTNode*)msgSend->receiver, analysis);
+	if(msgSend->receiver->CTE_value.type == typeType)	
+		return (BanterType*)msgSend->receiver->CTE_value.value;
+	else
+		ERROR("type of CTE_value is %s, should be Type", msgSend->receiver->CTE_value.type->name);
+	return NULL;
+}
+
+IRNode* type_builder_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
+	msgSend->type = methodType;
+	SymbolIRNode *sym = new(SymbolIRNode);
+	sym->type = IRN_SYM;
+	sym->name = msgSend->message.name;
+	sym->banterType = methodType;
+	return (IRNode*)sym;
+}
+BanterType* type_builder_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
+	if(msgSend->receiver->vt == &SymbolVT) {
+		LOG("building type");
+		if(msgSend->message.type != MSG_KEYWORD)
+			ERROR("ugh");
+		ASTNode* newTypeNameNode = msgSend->message.list[0].value;
+		if(newTypeNameNode->vt != &PrimativeNodeVT)
+			ERROR("Not primative");
+		PrimativeNode *prim = (PrimativeNode*)newTypeNameNode;
+		if(prim->primType != PRIM_STR)
+			ERROR("not string");
+		char *newTypeName = prim->value.string;
+		BanterType *newType = new(BanterType);
+		newType->name = newTypeName;
+		hashmap_create(8, &newType->acceptsMessages);
+		LOG("Adding type %s (%p)", newTypeName, newType);
+		
+		list_append(analysis->types, newType);
+
+
+		Variable *var = new(Variable);
+		var->name = newTypeName;
+		var->value = newType;
+		var->type = typeType;
+
+		Hashmap_put(&analysis->currentBlock->scopeSymbols, newTypeName, var);
+		msgSend->CTE_value = (BanterValue) { .type = typeType, .value = newType };
+		msgSend->type = typeBuilderType;
+		return typeBuilderType;
+	} else if(msgSend->receiver->vt == &MessageSendVT) {
+		if(msgSend->receiver->CTE_value.type != typeType) ERROR(":'(");
+		BanterType *theType = (BanterType*) msgSend->receiver->CTE_value.value;
+		theType->userDefined = true;
+		LOG("adding fields to %s", theType->name);
+		//MessageSend *prevMsgSend = (MessageSend*)msgSend->receiver;
+		//prevMsgSend->vt->analyse((ASTNode*)prevMsgSend, analysis);
+		//if(prevMsgSend->message.type != MSG_UNARY) {
+		//	ERROR("not suppawted yet UwU");
+		//}
+		//MessageTemplate *extension = MessageTemplate__new(MSG_UNARY, voidType);
+		KeyNodeValue knv;
+		for_list(knv, msgSend->message.list) {
+			LOG("f: %s", knv.key);
+			knv.value->vt->analyse(knv.value, analysis);
+			if(knv.value->CTE_value.type != typeType) ERROR("not type");
+			BanterType *type = (BanterType*)knv.value->CTE_value.value;
+
+			MessageTemplate *template = MessageTemplate__new(MSG_UNARY, type);
+			template->implementation = MSG_IMP_FIELD;
+			Hashmap_put(&theType->acceptsMessages, knv.key, template);
+			LOG("Adding %s: %s to %s %p", knv.key, template->returns->name, theType->name, (void*)theType);
+		}
+	
+		msgSend->type = typeType;
+		return typeType;
+	}
+	ERROR("adsf");
+	return NULL;
+}
+
 IRNode* c_type_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
 	msgSend->type = methodType;
 	SymbolIRNode *sym = new(SymbolIRNode);
@@ -47,8 +150,79 @@ IRNode* c_type_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
 BanterType* c_type_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
 	LOG("c");
 	//char* name = msgSend->message.name;
+	msgSend->vt->fprint((ASTNode*)msgSend, analysis->printData);
+	fprintf(analysis->printData->dest, "\n");
 	msgSend->type = methodType;
 	return methodType;	
+}
+
+typedef struct {
+	MessageTemplate *messageTemplate;
+	BanterType *extendingType;
+} MethodDefinitionInfo;
+
+IRNode* method_define_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
+	if(msgSend->receiver->CTE_value.type != methodDefineType)
+		ERROR("!");
+	MethodDefinitionInfo *data = (MethodDefinitionInfo*)msgSend->receiver->CTE_value.value;
+
+	//BanterType *extendingType = data->extendingType;
+	MessageTemplate *extension = data->messageTemplate;
+	extension->method->ir = extension->method->ast->vt->produce_ir(extension->method->ast, analysis);
+
+	NoOpIRNode *noop = new(NoOpIRNode);
+	noop->type = IRN_NOOP;
+	return (IRNode*) noop;
+}
+BanterType* method_define_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
+	if(msgSend->receiver->CTE_value.type != methodDefineType)
+		ERROR("!");
+	MethodDefinitionInfo *data = (MethodDefinitionInfo*)msgSend->receiver->CTE_value.value;
+
+	BanterType *extendingType = data->extendingType;
+	MessageTemplate *extension = data->messageTemplate;
+	KeyNodeValue arg;
+	for_list(arg, msgSend->message.list) {
+		switchs(arg.key) {
+			cases("do")
+				if(arg.value->vt == &BlockVT) {
+					if(((ASTNode*)arg.value)->vt != &BlockVT)
+						ERROR("confused");
+					extension->method->ast = (ASTNode*)arg.value;
+					Block *block = (Block*)extension->method->ast;
+					Hashmap_put(&block->scopeSymbols, "self", Variable__new("self", extendingType));
+					KeyTypeValue ktv;
+					LOG_START("PARAMS:	");
+					for_list(ktv, extension->list) {
+						LOG_PART("%s: %s", ktv.key, ktv.type->name);
+						Hashmap_put(&block->scopeSymbols, ktv.key, Variable__new(ktv.key, ktv.type));
+					}
+					LOG_FIN("");
+					LOG("Analyse the code");
+					block->vt->fprint((ASTNode*)block, analysis->printData);
+					block->vt->analyse((ASTNode*)block, analysis);
+				}
+				else
+					ERROR("do param not a block");
+			break;
+			cases("return")
+				if(arg.value->vt != &SymbolVT)
+					ERROR("must be symbol for now");
+				arg.value->vt->analyse(arg.value, analysis);
+				extension->returns = (BanterType*)((Symbol*)arg.value)->var->value;
+				break;
+			defaults
+				ERROR("Unsure of %s", arg.key);
+				break;
+		} switchs_end;
+	}
+	if(extension->returns == NULL)
+		extension->returns = voidType;
+	extension->method->returns = extension->returns;
+	//char* name = msgSend->message.name;
+	extension->method->ast->vt->analyse(extension->method->ast, analysis);
+	msgSend->type = voidType;
+	return voidType;
 }
 IRNode* type_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
 	NoOpIRNode *noop = new(NoOpIRNode);
@@ -57,13 +231,22 @@ IRNode* type_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
 }
 BanterType* type_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
 	ASTNode *rec = msgSend->receiver;
+	rec->vt->analyse(rec, analysis);
 	rec->type = typeExtendType;
 	char *messageName = msgSend->message.name;
 	switch(msgSend->message.type) {
 		case MSG_UNARY:;
 			switchs(messageName) {
 				cases("extend")
+					msgSend->CTE_value = rec->CTE_value;
 					return typeExtendType;
+					break;
+				cases("new")
+					LOG("passing up %s", rec->CTE_value.type->name);
+					msgSend->CTE_value = rec->CTE_value;
+					return initialiserType;
+				defaults
+					ERROR("message '%s' not recognised", messageName);
 					break;
 			} switchs_end;
 			break;
@@ -74,196 +257,70 @@ BanterType* type_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
 	return voidType;
 }
 IRNode* type_extend_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
-	ASTNode *rec = msgSend->receiver;
-	//char *msgName = msgSend->message.name;
-	switch(msgSend->message.type) {
-		case MSG_UNARY:;
-			break;
-		case MSG_KEYWORD:;
-			Block *block = NULL;
-			BanterType *returnType = NULL;
-			KeyNodeValue arg;
-			for_list(arg, msgSend->message.list) {
-				switchs(arg.key) {
-					cases("do")
-						if(arg.value->vt == &BlockVT)
-							block = (Block*)arg.value;
-						else
-							ERROR("do param not a block");
-					break;
-					cases("return")
-						if(arg.value->vt != &SymbolVT)
-							ERROR("must be symbol for now");
-						returnType = (BanterType*)((Symbol*)arg.value)->var->value;
-						break;
-					defaults
-						ERROR("Unsure of %s", arg.key);
-						break;
-				} switchs_end;
-			}
-			//rec->type = msgSend->message.list[0].value->type;
-			if(rec->vt == &MessageSendVT) {
-				MessageSend *prevMsgSend = (MessageSend*)rec;
-				char *newUnaryMsgName= prevMsgSend->message.name;
-				if(prevMsgSend->receiver->vt == &MessageSendVT) {
-					MessageSend *prevPrevMsgSend = (MessageSend*)prevMsgSend->receiver;
-					//MessageType messageType = prevPrevMsgSend->message.type;
-					if(strcmp(prevPrevMsgSend->message.name, "extend") != 0) {
-						ERROR("sus: %s", prevPrevMsgSend->message.name);
-					}
-					if(prevPrevMsgSend->receiver->vt == &SymbolVT) {
-						char *typeBeingExtended= ((Symbol*)prevPrevMsgSend->receiver)->str;
-						LOG("Extending type '%s' to accept message '%s'", typeBeingExtended, newUnaryMsgName);
-						Variable *var = find_var(typeBeingExtended, analysis);
-						if(var == NULL) {
-							ERROR("Could not find type %s", typeBeingExtended);
-						} else if(var->type != typeType) {
-							ERROR("Not a type");
-						}
-						BanterType *type = (BanterType*)var->value;
-						
-						LOG("type: %p, intType: %p", (void*)type, (void*)intType);
-						MessageTemplate *tem = Hashmap_get(&type->acceptsMessages, newUnaryMsgName);
-						if(!tem) {
-							ERROR("._.");
-						}
-						BanterMethod *met = tem->method;
-						met->ir = met->ast->vt->produce_ir(met->ast, analysis);
-						break;
-					} else {
-						ERROR_START("'");
-						prevMsgSend->receiver->vt->fprint(prevPrevMsgSend->receiver, PrintData__new(stderr, PO_COLOR));
-						fprintf(stderr, "' is not a symbol");
-						ERROR_END();
-					}
-				} else { ERROR(">:("); }
-			} else { ERROR(">:("); }
-			break;
-		default:
-			ERROR("NO");
-			break;
-	}
+	BanterType *extendingType;
+	if(msgSend->receiver->CTE_value.type != typeType)
+		ERROR("!");
+	extendingType = (BanterType*)msgSend->CTE_value.value;
 
 	NoOpIRNode *noop = new(NoOpIRNode);
 	noop->type = IRN_NOOP;
 	return (IRNode*)noop;
 }
 BanterType* type_extend_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
-	ASTNode *rec = msgSend->receiver;
-	//char *msgName = msgSend->message.name;
-	switch(msgSend->message.type) {
-		case MSG_UNARY:;
-			//rec->type = typeExtendType;
-			return typeExtendType;
-		case MSG_KEYWORD:;
-			Block *block = NULL;
-			BanterType *returnType = NULL;
-			KeyNodeValue arg;
-			for_list(arg, msgSend->message.list) {
-				switchs(arg.key) {
-					cases("do")
-						if(arg.value->vt == &BlockVT)
-							block = (Block*)arg.value;
-						else
-							ERROR("do param not a block");
-					break;
-					cases("return")
-						if(arg.value->vt != &SymbolVT)
-							ERROR("must be symbol for now");
-						arg.value->vt->analyse(arg.value, analysis);
-						returnType = (BanterType*)((Symbol*)arg.value)->var->value;
-						break;
-					defaults
-				//		ERROR("Unsure of %s", arg.key);
-						return typeExtendType;
-						break;
-				} switchs_end;
+	BanterType *extendingType;
+	if(msgSend->receiver->CTE_value.type != typeType)
+		ERROR("!");
+	extendingType = (BanterType*)msgSend->receiver->CTE_value.value;
+
+	MessageTemplate *extension = MessageTemplate__new(msgSend->message.type, voidType);
+	BanterMethod *method = new(BanterMethod);
+	if(msgSend->message.type == MSG_UNARY) {
+		method->arguments = NULL;
+	} else if(msgSend->message.type == MSG_KEYWORD) {
+		method->arguments = list_alloc(KeyNodeValue);
+		KeyNodeValue knv;
+		for_list(knv, msgSend->message.list) {
+			knv.value->vt->analyse(knv.value, analysis);
+			LOG("%s: ", knv.key);
+			knv.value->vt->fprint(knv.value, analysis->printData);
+			BanterType *argType = knv.value->CTE_value.value;
+			if(knv.value->CTE_value.type != typeType)
+				ERROR("not a type its a %s", argType != NULL ? argType->name : "null");
+
+			// HACK TODO: FIX
+			// if is operator
+			if(charCat(knv.key[0]) != LEX_WRD) {
+				knv.key = strdup("other");
 			}
-			//rec->type = msgSend->message.list[0].value->type;
-			if(rec->vt == &MessageSendVT) {
-				MessageSend *prevMsgSend = (MessageSend*)rec;
-				MessageType messageType = prevMsgSend->message.type;
-				char *newMsgName= prevMsgSend->message.name;
-				MessageSend *prevPrevMsgSend = (MessageSend*)prevMsgSend->receiver;
-				if(prevMsgSend->receiver->vt == &MessageSendVT && prevPrevMsgSend->message.type == MSG_UNARY) {
-					if(strcmp(prevPrevMsgSend->message.name, "extend") != 0) {
-						ERROR("sus: %s", prevPrevMsgSend->message.name);
-					}
-					if(prevPrevMsgSend->receiver->vt == &SymbolVT) {
-						char *typeBeingExtended= ((Symbol*)prevPrevMsgSend->receiver)->str;
-						LOG("Extending type '%s' to accept message '%s'", typeBeingExtended, newMsgName);
-						Variable *var = find_var(typeBeingExtended, analysis);
-						if(var == NULL) {
-							ERROR("Could not find type");
-						} else if(var->type != typeType) {
-							ERROR("Not a type");
-						}
-						BanterType *type = (BanterType*)var->value;
-						
-						LOG("type: %p, intType: %p", (void*)type, (void*)intType);
-						MessageTemplate *extension = MessageTemplate__new(messageType, voidType);
-						if(!returnType)
-							ERROR("no return type");
-						extension->returns = returnType;
-						BanterMethod *method = new(BanterMethod);
-						if(messageType == MSG_UNARY) {
-							method->arguments = NULL;
-						} else if(messageType == MSG_KEYWORD) {
-							method->arguments = list_alloc(KeyNodeValue);
-							KeyNodeValue knv;
-							for_list(knv, prevMsgSend->message.list) {
-								if(knv.value->vt != &SymbolVT) {
-									ERROR("SAD");
-								}
-								Symbol *sym = (Symbol*)knv.value;
-								sym->vt->analyse((ASTNode*)sym, analysis);
-								//Variable *var = find_var(knv.value, analysis);
-								//if(var == NULL) ERROR("Couldn't find type");
-								if(sym->type != typeType) {
-									ERROR("'%s' is not a type, its a %s", sym->str, sym->type->name);
-								}
-								BanterType *type = (BanterType*)sym->var->value;
-
-								if(charCat(knv.key[0]) != LEX_NORM) {
-									knv.key = strdup("other");
-								}
-								KeyTypeValue ktv = {
-									.key = knv.key,
-									.type = type
-								};
-								LOG("KEY: %s", knv.key);
-								
-								list_append(method->arguments, ktv);
-							}
-						} else {
-							ERROR("(*&$#");
-						}
-						method->name = newMsgName;
-						method->returns = returnType;
-						method->receiverType = type;
-						method->ast = (ASTNode*)block;
-						method->ast->vt->analyse(method->ast, analysis);
-
-						extension->method = method;
-
-						list_append(extension->list, ((KeyTypeValue){strdup(newMsgName), NULL}));
-						Hashmap_put(&type->acceptsMessages, newMsgName, extension);
-
-						return typeExtendType;
-					} else {
-						ERROR_START("'");
-						prevMsgSend->receiver->vt->fprint(prevPrevMsgSend->receiver, PrintData__new(stderr, PO_COLOR));
-						fprintf(stderr, "' is not a symbol");
-						ERROR_END();
-					}
-				} else { ERROR(">:("); }
-			} else { ERROR(">:("); }
-		default:
-			ERROR("NO");
-			break;
+			/*char *argName = calloc(sizeof(char), strlen(knv.key));
+			memcpy(argName, knv.key, sizeof(char) * strlen(knv.key) - 1);*/
+			char *argName = knv.key;
+			KeyTypeValue ktv = {
+				.key = argName,
+				.type = argType
+			};
+			LOG("KEY: %s", ktv.key);
+			list_append(method->arguments, ktv);
+			list_append(extension->list, ktv);
+		}
+	} else {
+		ERROR("(*&$#");
 	}
-	ERROR("NO");
-	return voidType;
+	method->name = msgSend->message.name;
+	method->returns = NULL; // defined in next level up
+	method->ast = NULL; // next level
+	method->receiverType = extendingType;
+
+	extension->method = method;
+
+	Hashmap_put(&extendingType->acceptsMessages, msgSend->message.name, extension);
+
+	MethodDefinitionInfo *info = new(MethodDefinitionInfo);
+	info->extendingType = extendingType;
+	info->messageTemplate = extension;
+
+	msgSend->CTE_value = (BanterValue){ .type = methodDefineType, .value = info};
+	return methodDefineType;
 }
 IRNode* let_produce_ir_overload(MessageSend* msgSend, Analysis* analysis) {
 	char *str = msgSend->message.name;
@@ -315,34 +372,28 @@ BanterType* let_analyse_overload(MessageSend* msgSend, Analysis* analysis) {
 	}
 	return letType;
 }
-#define MAKE_TYPE(type) 														\
+#define MAKE_TYPE(type) do {													\
 	type ## Type = new(BanterType);												\
 	type ## Type ->name = strdup(# type);										\
-	hashmap_create(8, &type ## Type ->acceptsMessages);
+	hashmap_create(8, &type ## Type ->acceptsMessages);							\
+} while(0);
+
+#define ADD_FIELD(toType, fieldName, fieldType)	do {							\
+	MessageTemplate *msg = MessageTemplate__new(MSG_UNARY, fieldType ## Type);	\
+	msg->implementation = MSG_IMP_FIELD;										\
+	list_append(msg->list, ((KeyTypeValue){strdup(# fieldName), fieldType ## Type}));\
+	Hashmap_put(&toType ## Type->acceptsMessages, # fieldName, msg);				\
+} while(0)
 
 #define ADD_MSG_BINARY_OP(type, op, resultantType) do {							\
 	MessageTemplate *msg = MessageTemplate__new(MSG_BINARY_OP, resultantType ## Type);	\
 	list_append(msg->list, ((KeyTypeValue){strdup(# op), type ## Type}));		\
-	Hashmap_put(&type ## Type->acceptsMessages, # op ":", msg);								\
-	} while(0)
+	Hashmap_put(&type ## Type->acceptsMessages, # op ":", msg);					\
+} while(0)
 
 
 void initBuiltins(void) {
-	// Program
-	MAKE_TYPE(Program);
-	
-	// Integer
-	MAKE_TYPE(int);
 
-	ADD_MSG_BINARY_OP(int, +, int);
-	ADD_MSG_BINARY_OP(int, ==, bool);
-
-	MessageTemplate *isEven = MessageTemplate__new(MSG_UNARY, boolType);
-	list_append(isEven->list, ((KeyTypeValue){strdup("isEven"), NULL}));
-	Hashmap_put(&intType->acceptsMessages, "isEven", isEven);
-	// String
-	
-	MAKE_TYPE(string)
 
 	// Bool
 	MAKE_TYPE(bool)
@@ -356,8 +407,30 @@ void initBuiltins(void) {
 	list_append(ifTrue->list, ((KeyTypeValue){strdup("ifTrue:"), boolType}));
 	Hashmap_put(&boolType->acceptsMessages, "ifTrue:", ifTrue);
 
+	// Integer
+	MAKE_TYPE(int);
+
+	ADD_MSG_BINARY_OP(int, +, int);
+	ADD_MSG_BINARY_OP(int, -, int);
+	ADD_MSG_BINARY_OP(int, *, int);
+	ADD_MSG_BINARY_OP(int, /, int);
+	ADD_MSG_BINARY_OP(int, %, int);
+	ADD_MSG_BINARY_OP(int, |, int);
+	ADD_MSG_BINARY_OP(int, &, int);
+	ADD_MSG_BINARY_OP(int, ^, int);
+	ADD_MSG_BINARY_OP(int, ==, bool);
+
+	MessageTemplate *isEven = MessageTemplate__new(MSG_UNARY, boolType);
+	list_append(isEven->list, ((KeyTypeValue){strdup("isEven"), NULL}));
+	Hashmap_put(&intType->acceptsMessages, "isEven", isEven);
+
+	// String
+	MAKE_TYPE(string)
+//	ADD_MSG_BINARY_OP(string, +, string);
+//	ADD_MSG_BINARY_OP(string, ==, bool);
 	// Void
 	MAKE_TYPE(void);
+	MAKE_TYPE(File);
 
 	// let
 	MAKE_TYPE(let);
@@ -374,13 +447,49 @@ void initBuiltins(void) {
 	typeExtendType->analyse_overload = type_extend_analyse_overload;
 	typeExtendType->produce_ir_overload = type_extend_produce_ir_overload;
 	
+	// block_extend block
+	MAKE_TYPE(Block);
+	//blockExtendType->analyse_overload = block_extend_analyse_overload;
+	//blockExtendType->produce_ir_overload = block_extend_produce_ir_overload;
+
+	// methodDefine methodDefine
+	MAKE_TYPE(methodDefine);
+	methodDefineType->analyse_overload = method_define_analyse_overload;
+	methodDefineType->produce_ir_overload = method_define_produce_ir_overload;
+
 	// type_extend type
 	MAKE_TYPE(c);
 	cType->analyse_overload = c_type_analyse_overload;
 	cType->produce_ir_overload = c_type_produce_ir_overload;
 
+	// type_extend type
+	MAKE_TYPE(initialiser);
+	initialiserType->analyse_overload = initialiser_analyse_overload;
+	initialiserType->produce_ir_overload = initialiser_produce_ir_overload;
+
+	// type_extend type
+	MAKE_TYPE(typeBuilder);
+	typeBuilderType->analyse_overload = type_builder_analyse_overload;
+	typeBuilderType->produce_ir_overload = type_builder_produce_ir_overload;
+
 	MAKE_TYPE(method);
 	methodType->allowAnyMessage = true;
-	methodType->analyse_overload = c_type_analyse_overload;
+	methodType->analyse_overload = method_type_analyse_overload;
 	//methodType->produce_ir_overload = c_type_produce_ir_overload;
+
+	//Range
+	MAKE_TYPE(Range);
+	ADD_FIELD(Range, to, int);
+	ADD_FIELD(Range, from, int);
+	MessageTemplate *doLoop = MessageTemplate__new(MSG_KEYWORD, RangeType);
+	list_append(doLoop->list, ((KeyTypeValue){strdup("do:"), BlockType}));
+	Hashmap_put(&RangeType->acceptsMessages, "do:", doLoop);
+
+	// Program
+	MAKE_TYPE(Program);
+	ProgramType->reference = true;
+	ADD_FIELD(Program, in, File);
+	ADD_FIELD(Program, out, File);
+	ADD_FIELD(Program, err, File);
+	ADD_FIELD(Program, argc, int);
 }

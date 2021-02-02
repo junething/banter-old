@@ -26,6 +26,7 @@ void _list_ensure_long_enough(char** list, size_t itemSize);
 #define for_list(var, list) \
 	for(int i = 0; var = list[i], (i < *list_count_ptr(list)); i++)
 #define on_last_item(list) (i + 1 == *list_count_ptr(list))
+#define not_last_item(list) (i + 1 != *list_count_ptr(list))
 #define list_map(list, fun, ...) 						\
 	for(int i = 0; (i < *list_count_ptr(list)); i++) {	\
 		fun(list[i], __VA_ARGS__);						\

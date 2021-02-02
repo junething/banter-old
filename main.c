@@ -35,7 +35,7 @@ FILE *start_c_compiler(char* outputFile, int *compiler_pid) {
         ERROR("fork failed");
     } else if (pid == 0) {
         // CHILD PROCESS
-    	logFile = stdout;
+    	logFile = stderr;
 		for(int s = 0; s < sleep_for; s++) {
 			sleep(1);
 		}
@@ -54,7 +54,8 @@ FILE *start_c_compiler(char* outputFile, int *compiler_pid) {
         	"-g",							// generate source level debug information
         	//"-v",							// verbose
         	"-",							// use stdin as input
-        	"source/misc.c",							// use stdin as input
+        	"source/misc.c",				// misc functions
+        	"source/main.c",				// contains main
         	"-o", outputFile,				// ouput filename
         	(char *)0						// terminal
         };
@@ -103,7 +104,7 @@ void run(char* path) {
     } else {
         // exec args
         char *args[2];
-        args[0] = strjoin("./", path);	// executeable path
+        args[0] = stradd("./", path);	// executeable path
         args[1] = (char *)0;							// terminal
         //LOG("%d", numUserArgs + 1);
         // char *args[] = { "cowsay", (char*)0 };
@@ -115,6 +116,11 @@ void run(char* path) {
 void parse_arguments(CompileOptions *compile_options, int argc, char **argv);
 int main(int argc, char **argv) {
 	CompileOptions compile_options = {};
+   	logFile = stderr;
+	LOG("ah: %s", argv[1]);
+	LOG("LOG");
+	if(argc < 2)
+		ERROR("not enough args");
 	switchs(argv[1]) {
 		cases("build")
 			compile_options.completeStep = STEP_COMPILE;
@@ -123,7 +129,9 @@ int main(int argc, char **argv) {
 			break;
 		cases("run")
 			compile_options.completeStep = STEP_RUN;
+			compile_options.completeStep |= STEP_COMPILE;
 			argv = &argv[1];
+			LOG("ah: %s", argv[1]);
 			argc--;
 			break;
 		defaults
@@ -157,10 +165,14 @@ int main(int argc, char **argv) {
 		Hashmap_put(&(((Block*)code)->scopeSymbols), # banterType, var);	\
 	} while(0);
 	// add the types
+	ADD_TYPE_VAR(void);
 	ADD_TYPE_VAR(int);
 	ADD_TYPE_VAR(bool);
 	ADD_TYPE_VAR(string);
 	ADD_TYPE_VAR(Program);
+	ADD_TYPE_VAR(Block);
+	ADD_TYPE_VAR(Range);
+	ADD_TYPE_VAR(File);
 	
 	Variable *var = new(Variable);
 	var->name = "c";
@@ -168,29 +180,39 @@ int main(int argc, char **argv) {
 	var->type = cType;
 	Hashmap_put(&(((Block*)code)->scopeSymbols), "c", var);
 
+	var = new(Variable);
+	var->name = "Type";
+	var->value = NULL;
+	var->type = typeBuilderType;
+	Hashmap_put(&(((Block*)code)->scopeSymbols), "Type", var);
+
 	BanterType **types = list_alloc(BanterType*);
-	list_append_many(types, intType, boolType, ProgramType, stringType);
+	list_append_many(types, intType, boolType, ProgramType, stringType, FileType);
 
 	Analysis *analysis = new(Analysis);
-	analysis->printData = PrintData__new(stdout, PO_COLOR);
+	analysis->printData = PrintData__new(logFile, PO_COLOR);
+	analysis->types = types;
 	// analyse
 	code->vt->analyse(code, analysis);
 
 	// print the analysed AST, should display types now
-	code->vt->fprint(code, PrintData__new(stdout, PO_COLOR));
+	code->vt->fprint(code, PrintData__new(logFile, PO_COLOR));
 	fprintf(logFile, "\n");
 
 	// Generated the IR Tree from the analysed AST
 	LOG("Produce IR:");
 	IRNode *irnode = code->vt->produce_ir((ASTNode*)code, analysis);
 	FILE* compileStream = stdout;
+	/*if(!(compile_options.completeStep & STEP_COMPILE) && ) {
+		compileStream = fopen(compile_options.outputPath, "w");
+	}*/
 	int compiler_pid;
 	compile_options.outputPath = "bant.out";
 	if(compile_options.completeStep & STEP_COMPILE || compile_options.completeStep & STEP_RUN) {
 		compileStream = start_c_compiler(compile_options.outputPath, &compiler_pid);
 	}
 	// Compile the IR Tree to C
-	LOG("Compile to C:");
+	LOG("Compile to C (%s)", compileStream == stdout ? "stdout" : "file");
 	
 	compile_options.file = compileStream;
 	compile_program_to_c(types, &compile_options);
@@ -218,7 +240,7 @@ int main(int argc, char **argv) {
 }
 
 void parse_arguments(CompileOptions *compile_options, int argc, char **argv) {
-	for(int a = 0; a < argc; a++) {
+	for(int a = 1; a < argc; a++) {
 		LOG("arg %d: %s", a, argv[a]);	
 		// for arguments in form of --option=value
 		// (argument is optional)
@@ -244,7 +266,7 @@ void parse_arguments(CompileOptions *compile_options, int argc, char **argv) {
 					if(argument == NULL) {
 						ERROR("No output specified");
 					}
-					compile_options->outputPath = strjoin("./", argument);
+					compile_options->outputPath = stradd("./", argument);
 					a++;
 					break;
 
@@ -293,7 +315,10 @@ void parse_arguments(CompileOptions *compile_options, int argc, char **argv) {
 					ERROR("Unsupported option '%s'", argv[a]);
 				break;
 				defaults
-					compile_options->input = fopen(argv[a], "r");	
+					FILE* input = fopen(argv[a], "r");
+					if(!input)
+						ERROR("File '%s' does not exist", argv[a]);
+					compile_options->input = input;	
 				break;
 
 		} switchs_end;
@@ -306,5 +331,5 @@ void parse_arguments(CompileOptions *compile_options, int argc, char **argv) {
 	}
 
    	if(logFile == NULL)
-   		logFile = stdout;
+   		logFile = stderr;
 }
