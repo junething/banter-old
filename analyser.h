@@ -12,5 +12,5 @@ typedef struct {
 } Analysis;
 
 void analyse (ASTNode* code);
-Variable *find_var(char *name, Analysis *analysis);
+Variable *find_var(char *name, ASTNode *currentNode, Analysis *analysis);
 #endif

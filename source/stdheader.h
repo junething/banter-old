@@ -5,6 +5,8 @@
 #include <string.h>
 
 #define streq(one, two) (strcmp(one, two) == 0)
+#define array_alloc(type, length) calloc(length, sizeof(type))
+
 typedef char* string;
 typedef FILE* File;
 

@@ -7,6 +7,7 @@
 #include "compile2c.h"
 #include "debugging.h"
 #include "banter_type.h"
+#include "builtins.h"
 #include "sb.h"
 char* convert_name(char* name) {
 	StringBuilder *sb = sb_create();
@@ -105,18 +106,54 @@ int compile_type_header(BanterType *type, CompileOptions *options) {
 	return 0;
 }
 int compile_type_code(BanterType *type, CompileOptions *options) {
-	Hashmap *m = &type->acceptsMessages;	
-	/* Linear probing */
-  	 for (int i = 0; i < m->table_size; i++) {
-    	if (m->data[i].in_use) {
-			BanterMethod *met = ((MessageTemplate*)m->data[i].data)->method;
-			if(met == NULL)
-				continue;
-			print_method_head(met, options);
-			fprintf(options->file, " {\n");
-			compile2c(met->ir, options);
-			fprintf(options->file, "}\n");
+	if(!type->generic) {
+		Hashmap *m = &type->acceptsMessages;
+		/* Linear probing */
+  	 	 for (int i = 0; i < m->table_size; i++) {
+    		if (m->data[i].in_use) {
+				BanterMethod *met = ((MessageTemplate*)m->data[i].data)->method;
+				if(met == NULL)
+					continue;
+				print_method_head(met, options);
+				fprintf(options->file, " {\n");
+				compile2c(met->ir, options);
+				fprintf(options->file, "}\n");
+			}
 		}
+	} else {
+		Hashmap *generics = &type->typeParamVersions;
+		/* Linear probing */
+  	 	 for (int i = 0; i < generics->table_size; i++) {
+    		if (generics->data[i].in_use) {
+    			BanterType *generic = generics->data[i].data;
+				fprintf(options->file, "// Generic type %s\n", generic->name);
+				Variable *param;
+				int p = 0;
+				for_list(param, generic->typeParams) {
+					LOG("var %s %s %s (%p)", param->name, param->type->name, ((BanterType*)param->value)->name, (void*)param);
+					Variable *masterVar = type->typeParams[p];
+					LOG("var %s %s %s (%p)", masterVar->name, masterVar->type->name, ((BanterType*)masterVar->value)->name, (void*)masterVar);
+					masterVar->value = param->value;
+					p++;
+				}
+				BanterType original = *type;
+				*type = *generic;
+				Hashmap *m = &generic->acceptsMessages;
+				/* Linear probing */
+  	 	 		for (int i = 0; i < m->table_size; i++) {
+    				if (m->data[i].in_use) {
+						BanterMethod *met = ((MessageTemplate*)m->data[i].data)->method;
+						if(met == NULL)
+							continue;
+						print_method_head(met, options);
+						fprintf(options->file, " {\n");
+						compile2c(met->ir, options);
+						fprintf(options->file, "}\n");
+					}
+				}
+				*type = original;
+    		}
+    	 }
 	}
 	return 0;
 }
@@ -222,13 +259,26 @@ int compile2c(IRNode *node, CompileOptions *options) {
 			fprintf(options->file, "return ");
 			compile2c(ret->value, options);
 			break;
+		case IRN_IND:;
+			IndexIRNode *index = (IndexIRNode*)node;
+			compile2c(index->array, options);
+			fprintf(options->file, "[");
+			compile2c(index->index, options);
+			fprintf(options->file, "]");
+			break;
 		case IRN_DEC:;
 			DeclarationIRNode *dec = (DeclarationIRNode*)node;
 			fprintf(options->file, "%s %s", dec->banterType->name, dec->name);
 			break;
 		case IRN_SYM:;
 			SymbolIRNode *sym = (SymbolIRNode*)node;
-			fprintf(options->file, "%s", sym->name);
+			if(sym->banterType == typeType) {
+				BanterType *type = (BanterType*)sym->var->value;
+				LOG("Type %s", type->name);
+				fprintf(options->file, "%s /*%p*/", type->name, (void*)sym);
+			} else {
+				fprintf(options->file, "%s", sym->name);
+			}
 			break;
 		case IRN_PRIM:;
 			PrimativeIRNode *prim = (PrimativeIRNode*)node;

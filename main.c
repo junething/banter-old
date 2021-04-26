@@ -42,11 +42,7 @@ FILE *start_c_compiler(char* outputFile, int *compiler_pid) {
         close(fromGCC[0]);
         close(toGCC[1]);
         dup2(toGCC[0], 0);
-        //dup2(fromGCC[1], 1);
-        //dup2(fromGCC[1], 2);
-
-        // GCC arguments
-        char *args[] = { compiler_path, 			// program name	
+        char *args[] = { compiler_path, 			// program name
         	"-Wno-parentheses-equality",	// stops a silly style warning
         	"-Wall",						// stops a silly style warning
         	"-std=c99",						// use c99
@@ -150,6 +146,7 @@ int main(int argc, char **argv) {
 	// parse and lex the code and wrap it in a block
 	Code* unwrappedCode = (Code*)parse(lexer, &compile_options);
 	ASTNode* code = (ASTNode*)Block__new(unwrappedCode);
+	((Block*)code)->outmostBlock = true;
 
 	// print the AST
 	code->vt->fprint(code, loggingPrintData);
@@ -173,6 +170,8 @@ int main(int argc, char **argv) {
 	ADD_TYPE_VAR(Block);
 	ADD_TYPE_VAR(Range);
 	ADD_TYPE_VAR(File);
+	ADD_TYPE_VAR(type);
+	ADD_TYPE_VAR(array);
 	
 	Variable *var = new(Variable);
 	var->name = "c";
@@ -187,10 +186,10 @@ int main(int argc, char **argv) {
 	Hashmap_put(&(((Block*)code)->scopeSymbols), "Type", var);
 
 	BanterType **types = list_alloc(BanterType*);
-	list_append_many(types, intType, boolType, ProgramType, stringType, FileType);
+	list_append_many(types, intType, boolType, ProgramType, stringType, FileType, typeType);
 
 	Analysis *analysis = new(Analysis);
-	analysis->printData = PrintData__new(logFile, PO_COLOR);
+	analysis->printData = loggingPrintData;
 	analysis->types = types;
 	// analyse
 	code->vt->analyse(code, analysis);
@@ -202,6 +201,7 @@ int main(int argc, char **argv) {
 	// Generated the IR Tree from the analysed AST
 	LOG("Produce IR:");
 	IRNode *irnode = code->vt->produce_ir((ASTNode*)code, analysis);
+	produce_type_ir(analysis);
 	FILE* compileStream = stdout;
 	/*if(!(compile_options.completeStep & STEP_COMPILE) && ) {
 		compileStream = fopen(compile_options.outputPath, "w");

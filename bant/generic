@@ -1,1 +1,13 @@
-Type new list: Item $  
+type list item: type = struct
+	count: int
+	size: int
+	array: array of: item.
+
+list extend append: item $ do: [
+	self count < self size $ ifFalse: [
+		self size = self size * 2.
+		self array = array realloc: self size.
+	]
+	self array at: self count = item.
+	self count = self count + 1.
+].

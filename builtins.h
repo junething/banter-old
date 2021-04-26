@@ -10,6 +10,7 @@ BanterType *voidType;
 BanterType *methodType;
 BanterType *letType;
 BanterType *RangeType;
+BanterType *arrayType;
 BanterType *ProgramType;
 BanterType *stringType;
 BanterType *typeType;

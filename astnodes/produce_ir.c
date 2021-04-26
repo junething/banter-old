@@ -6,6 +6,26 @@
 #include "../hashmap.h"
 #include "../irnodes.h"
 #include "../debugging.h"
+void produce_type_ir(Analysis *analysis) {
+	BanterType *type;
+	for_list(type, analysis->types) {
+		if(type->typeParamVersions.data != NULL) {
+			Hashmap *m = &type->typeParamVersions;
+  	 		for (int i = 0; i < m->table_size; i++) {
+    			if (m->data[i].in_use) {
+    				BanterType *version = (BanterType*)m->data[i].data;
+					Hashmap *messages = &version->acceptsMessages;
+  	 				for (int i = 0; i < messages->table_size; i++) {
+    					if (messages->data[i].in_use) {
+							BanterMethod *met = ((MessageTemplate*)messages->data[i].data)->method;
+							met->ir = met->ast->vt->produce_ir(met->ast, analysis);
+    					}
+    				}
+    			}
+    		}
+    	}
+	}
+}
 IRNode *ManyMessageSend__produce_ir(ASTNode* node, Analysis *analysis) {
 	return NULL;
 }
@@ -75,11 +95,11 @@ IRNode *MessageSend__produce_ir(ASTNode* node, Analysis *analysis) {
 	if(node->vt != &MessageSendVT)
 		ERROR("Not a MessageSend");
 	MessageSend *msgsend = (MessageSend*)node;
-	if(msgsend->receiver->type->produce_ir_overload != NULL) {
+	Message msg = msgsend->message;
+	if(!(msg.type == MSG_BINARY_OP && strcmp(msg.list[0].key, "=") == 0) && msgsend->receiver->type->produce_ir_overload != NULL) {
 		return msgsend->receiver->type->produce_ir_overload(msgsend, analysis);
 	}
 	//msgsend->receiver->vt->produce_ir(msgsend->receiver, analysis);
-	Message msg = msgsend->message;
 	bool isExtension = false;
 	MessageTemplate *messageTemplate = Message__getTemplate(msg, msgsend->receiver, analysis, &isExtension);
 	node->type = messageTemplate->returns;
@@ -181,9 +201,14 @@ IRNode *ListNode__produce_ir(ASTNode* node, Analysis *analysis) {
 IRNode *Symbol__produce_ir(ASTNode* node, Analysis *analysis) {
 	Symbol *symbol = (Symbol*)node;
 	SymbolIRNode *irnode = new(SymbolIRNode);
-	irnode->name = symbol->str;
 	irnode->type = IRN_SYM;
 	irnode->banterType = node->type;
+	irnode->var = symbol->var;
+	//if(symbol->var->type == typeType) {
+	//	irnode->name = symbol->var->type->name;
+	//} else {
+		irnode->name = symbol->str;
+	//}
 	return (IRNode*)irnode;
 }
 IRNode *Code__produce_ir(ASTNode* node, Analysis *analysis) {

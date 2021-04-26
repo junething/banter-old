@@ -16,11 +16,12 @@ struct Variable {
 	void *value;
 };
 Variable *Variable__new(char* name, BanterType *type);
+Variable *Variable__newv(char* name, BanterType *type, void* value);
 
 typedef struct {
 	int sdag;
 } IRNodeVT;
-typedef enum { IRN_NONE, IRN_IF, IRN_FOR, IRN_SBO, IRN_MET_CALL, IRN_SYM, IRN_CODE, IRN_INT, IRN_DEC, IRN_NOOP, IRN_PRIM, IRN_CALL, IRN_RET, IRN_INIT, IRN_FIELD_ACC } IRNodeType; 
+typedef enum { IRN_NONE, IRN_IF, IRN_FOR, IRN_SBO, IRN_MET_CALL, IRN_SYM, IRN_CODE, IRN_INT, IRN_DEC, IRN_NOOP, IRN_PRIM, IRN_CALL, IRN_RET, IRN_INIT, IRN_FIELD_ACC, IRN_IND } IRNodeType; 
 #define IRNODE_HEADER		\
 	IRNodeType type; 		\
 	ASTNode *astNode; 		\
@@ -83,7 +84,12 @@ typedef struct {
 	IRNode *method;
 	IRNode *self;
 	IRNode **parameters;
-} MethodCallIRNnode;
+} MethodCallIRNode;
+typedef struct {
+	IRNODE_HEADER;
+	IRNode *array;
+	IRNode *index;
+} IndexIRNode;
 typedef struct {
 	IRNODE_HEADER;
 	//IRNode *field;
@@ -105,6 +111,7 @@ typedef struct {
 typedef struct {
 	IRNODE_HEADER
 	char *name;
+	Variable *var;
 } SymbolIRNode;
 
 typedef struct {

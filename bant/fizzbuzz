@@ -1,5 +1,5 @@
 int extend '->': int $ do: [
-	^ Range new from: self to: other.
+	^ Range init from: self to: other.
 ] return: Range.
 
 int extend print do: [ c printf arg: '%d' arg: self. ] return: void.
@@ -8,6 +8,7 @@ int extend isZero do: [ ^self == 0.] return: bool.
 string extend print do: [
 	c printf arg: '%s' arg: self.
 ] return: void.
+
 string extend '+': string $ return: string do: [
 	^c stradd arg: self arg: other.
 ].

@@ -1,0 +1,8 @@
+
+int extend print do: [ c printf arg: '%d' arg: self. ] return: void.
+Program extend main return: int do: [
+	let numbers = array of: int num: 9.
+	numbers at: 0 = 7.
+	(numbers at: 0) print.
+	^0.
+].

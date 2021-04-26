@@ -59,6 +59,7 @@ typedef struct {
 typedef struct {
 	void (*fprint)(ASTNode* node, PrintData *printData);
 	void (*analyse)(ASTNode* node, Analysis *analysis);
+	ASTNode *(*deep_copy)(ASTNode* node);
 	IRNode *(*produce_ir)(ASTNode* node, Analysis *analysis);
 } NodeVT;
 
@@ -72,6 +73,8 @@ typedef struct {
 	BanterType* type;		\
 	void *analysisDataPass;	\
 	BanterValue CTE_value;	\
+	Hashmap scopeSymbols;	\
+	ASTNode *parent;		\
 	char *file;
 
 struct ASTNode {
@@ -120,12 +123,12 @@ struct Block {
 	COMMON_NODE_FIELDS
 	Code *code;
 	Message parameters;
-	Hashmap scopeSymbols;
 	int scopeID;
-	struct Block *parent;
+	bool outmostBlock;
 };
 
 
+void produce_type_ir(Analysis *analysis);
 // New
 KeyNodeValue *KeyNodeValue__new(char* key, ASTNode *value);
 Symbol *Symbol__new();
@@ -141,8 +144,9 @@ PrimativeNode* PrimativeNode__new_real(PrimativeType type, PrimativeUnion value)
 #define DEC_ASTNODE_METHODS(type)										\
 NodeVT type ## VT;														\
 void type ## __analyse(ASTNode* node, Analysis *analysis);				\
-void type ## __fprint(ASTNode* node, PrintData *printData);				\
-IRNode * type ## __produce_ir(ASTNode* node, Analysis *analysis);
+ASTNode * type ## __deep_copy(type* node); 				      			\
+IRNode * type ## __produce_ir(ASTNode* node, Analysis *analysis);       \
+void type ## __fprint(ASTNode* node, PrintData *printData);
 
 DEC_ASTNODE_METHODS(Symbol);
 DEC_ASTNODE_METHODS(ReturnNode);

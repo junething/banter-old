@@ -1,5 +1,5 @@
 string extend '+': string $ return: string do: [
-	^c strjoin arg: self arg: other arg: NULL.
+	^c stradd arg: self arg: other.
 ].
 string extend print return: int do: [
 	c puts arg: self.

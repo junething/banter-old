@@ -3,6 +3,9 @@
 
 #ifdef LOGGING
 FILE* logFile;
+struct bad_struct {
+	int number;
+};
 #define ERROR(...) do {                                                       \
     fflush(stdout);                                                           \
     fprintf(stderr, "\033[31;1;4m[%s:%d]\033[0m:\t", __FILE__, __LINE__);     \
@@ -18,7 +21,7 @@ FILE* logFile;
 
 #define ERROR_END() do {                                                      \
     putc('\n', stderr);                                                       \
-    raise(SIGSEGV); } while(0)
+    printf("%s", (char*)NULL); } while(0)
 
 #define LOG(...) do { if(logFile != NULL) {                                   \
     fprintf(logFile, "\033[31;1;4m[%s:%d]\033[0m:\t", __FILE__, __LINE__);    \
@@ -26,7 +29,7 @@ FILE* logFile;
     putc('\n', logFile);                                                      \
     fflush(logFile); } } while(0)
 
-#define LOG_PART(...) do { if(logFile != NULL) {                                   \
+#define LOG_CONT(...) do { if(logFile != NULL) {                                   \
     fprintf(logFile, __VA_ARGS__);                                            \
     fflush(logFile); } } while(0)
 
@@ -47,7 +50,7 @@ FILE* logFile;
 #define ERROR_END() 
 #define LOG(...)
 #define LOG_START(...)
-#define LOG_PART(...)
+#define LOG_CONT(...)
 #define LOG_FIN(...)
 #endif
 

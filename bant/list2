@@ -1,0 +1,9 @@
+(Type List of: type)
+	size: int
+	count: int
+	data: (array of: of).
+(List of: type) extend new return: (List of: of) do: [
+	^ (List of: of) init size: 8 count: 0 data: (array of: of num: 8).
+].
+let numbers = (List of: int) new.
+let strings = (List of: string) new.

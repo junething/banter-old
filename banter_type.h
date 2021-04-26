@@ -13,6 +13,11 @@ typedef struct  {
 #include "analyser.h"
 struct BanterMethod;
 typedef struct BanterMethod BanterMethod;
+
+typedef struct {
+	char *key;
+	BanterType *type;
+} KeyTypeValue;
 struct BanterType {
 	Hashmap acceptsMessages;
 	BanterType* (*analyse_overload)(MessageSend* msgSend, Analysis* analysis);
@@ -21,12 +26,11 @@ struct BanterType {
 	bool allowAnyMessage;
 	bool userDefined;
 	bool reference;
+	Hashmap typeParamVersions;
+	Variable **typeParams;
+	bool generic;
 };
 
-typedef struct {
-	char *key;
-	BanterType *type;
-} KeyTypeValue;
 typedef union {
 	KeyTypeValue* keyword;
 	char *unaryWord;

@@ -53,7 +53,6 @@ BanterType *Message__analyse(Message messageTagged, ASTNode *receiver, Analysis 
 void MessageSend__analyse(ASTNode* node, Analysis *analysis) {
 	MessageSend *msgsend = (MessageSend*)node;
 	msgsend->receiver->vt->analyse(msgsend->receiver, analysis);
-
 	if(msgsend->receiver->type->analyse_overload != NULL) {
 		node->type = msgsend->receiver->type->analyse_overload(msgsend, analysis);
 	} else {
@@ -69,7 +68,7 @@ void ReturnNode__analyse(ASTNode* node, Analysis *analysis) {
 void Block__analyse(ASTNode* node, Analysis *analysis) {
 //	LOG("analysing block");
 	Block *block = (Block*)node;
-	block->parent = analysis->currentBlock;
+	Block *parentBlock = analysis->currentBlock;
 	analysis->currentBlock = block;
 	if(block->parameters.list != NULL) {
 		KeyNodeValue knv;
@@ -93,7 +92,7 @@ void Block__analyse(ASTNode* node, Analysis *analysis) {
 		}
 	}
 	block->code->vt->analyse((ASTNode*)block->code, analysis);
-	analysis->currentBlock = block->parent;
+	analysis->currentBlock = parentBlock;
 	//node->type = block->code->type;
 	node->type = BlockType;
 }
@@ -122,9 +121,9 @@ void Symbol__analyse(ASTNode* node, Analysis *analysis) {
 	if(strcmp(sym->str, "let") == 0) {
 		node->type = letType;
 	} else {
-		Variable* var = find_var(sym->str, analysis);
+		Variable* var = find_var(sym->str, node, analysis);
 		if(var == NULL) {
-			ERROR("Symbol '%s' not defined", sym->str);
+			ERROR("Symbol '%s' not defined on line %d", sym->str, node->line);
 		}
 		//node->type = voidType;
 		sym->var = var;

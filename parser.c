@@ -75,7 +75,16 @@ ASTNode *parseValue(Parser *parser) {
 		consume(parser, BLOCK_CLOSE);
 
 		Block *block = Block__new(blockCode);
+		if(blockArguments.list != NULL) {
+			KeyNodeValue knv;
+			for_list(knv, blockArguments.list) {
+				LOG("-------------------Adding parent for %s", knv.key);
+				knv.value->parent = (ASTNode*)block;
+			}
+		//	LOG("peeking %s", parser->peek);
+		}
 		block->parameters = blockArguments;
+		block->line = parser->line;
 		return (ASTNode*)block;
 	} else if(parser->peek.str == NULL) {
 		ERROR("Token of type %s has no value on line %d", TokenType__name(parser->peek.type), parser->line);
@@ -94,6 +103,7 @@ ASTNode *parseValue(Parser *parser) {
 		}
 	}
 	Parser__next(parser);
+	value->line = parser->line;
 	return value;
 }
 
@@ -138,28 +148,7 @@ ASTNode *parseBinOpSend(Parser *parser) {
 	}
 	return NULL;
 }	
-Message parseAssign(Parser *parser) {
-	char* op = parser->peek.str;
-	Parser__next(parser);
-	ASTNode *right = (ASTNode*)parseExpression(parser);
-	KeyNodeValue* single = list_alloc(KeyNodeValue);
-	KeyNodeValue knv = (KeyNodeValue){op, right};
-	list_append(single, knv);
-	//return (Message) { MSG_BINARY_OP, single, strjoin(":", op, ":", NULL) };
-	return (Message) { MSG_BINARY_OP, single, strjoin(op, ":", NULL) };
-}
-ASTNode *parseAssignSend(Parser *parser) {
-	ASTNode *left = parseBinOpSend(parser);
-	while(true) {
-		if(parser->peek.type == OPERATOR_MSG && strcmp(parser->peek.str, "=") == 0) {
-			ASTNode *newLeft = (ASTNode*)MessageSend__new(left, parseAssign(parser));
-			left = newLeft;
-		} else { 
-			return left;
-		}
-	}
-	return NULL;
-}	
+
 Message parseKeyWordMessage(Parser *parser) {
 	KeyNodeValue* arguments = list_alloc(KeyNodeValue);
 	StringBuilder *sb = sb_create();
@@ -168,7 +157,7 @@ Message parseKeyWordMessage(Parser *parser) {
 		sb_append(sb, key);
 		sb_append(sb, ":");
 		Parser__next(parser);
-		ASTNode *value = parseAssignSend(parser);
+		ASTNode *value = parseBinOpSend(parser);
 		KeyNodeValue knv = (KeyNodeValue) {key, value};
 		list_append(arguments, knv);
 	}
@@ -177,7 +166,7 @@ Message parseKeyWordMessage(Parser *parser) {
 	return (Message) { MSG_KEYWORD, arguments, name };
 }
 ASTNode *parseKeyWordMessageSend(Parser *parser) {
-	ASTNode *receiver = parseAssignSend(parser);
+	ASTNode *receiver = parseBinOpSend(parser);
 	while(parser->peek.type == KEYWORD_MSG) {
 		if(parser->peek.type == KEYWORD_MSG) {
 			Message message = parseKeyWordMessage(parser);
@@ -196,7 +185,7 @@ Message parseAnyMessage(Parser *parser) {
 		case TOK_WORD:
 			return parseUnaryMessage(parser);
 		case OPERATOR_MSG:
-			return parseAssign(parser);
+			return parseBinOp(parser);
 		case KEYWORD_MSG:
 			return parseKeyWordMessage(parser);
 		default:
@@ -282,14 +271,37 @@ ASTNode* parseReturn(Parser *parser) {
 	}
 	return parseList(parser);
 }
+Message parseAssign(Parser *parser) {
+	char* op = parser->peek.str;
+	Parser__next(parser);
+	ASTNode *right = (ASTNode*)parseExpression(parser);
+	KeyNodeValue* single = list_alloc(KeyNodeValue);
+	KeyNodeValue knv = (KeyNodeValue){op, right};
+	list_append(single, knv);
+	//return (Message) { MSG_BINARY_OP, single, strjoin(":", op, ":", NULL) };
+	return (Message) { MSG_BINARY_OP, single, strjoin(op, ":", NULL) };
+}
+ASTNode *parseAssignSend(Parser *parser) {
+	ASTNode *left = parseReturn(parser);
+	while(true) {
+		if(parser->peek.type == OPERATOR_MSG && strcmp(parser->peek.str, "=") == 0) {
+			ASTNode *newLeft = (ASTNode*)MessageSend__new(left, parseAssign(parser));
+			left = newLeft;
+		} else { 
+			return left;
+		}
+	}
+	return NULL;
+}	
 ASTNode *parseExpression(Parser *parser) {
-	return parseReturn(parser);
+	return parseAssignSend(parser);
 }
 Code *parseCode(Parser *parser) {
 	ASTNode **nodes = list_alloc(ASTNode*);
 	while (true) {
 		ASTNode *node = parseExpression(parser);
 		node->statement = true;
+		node->line = parser->line;
 		// HACK
 		// TODO: FIX
 		if(!(node->vt == &SymbolVT && strlen(((Symbol*)node)->str) == 0)) {

@@ -1,4 +1,4 @@
-Type new: 'Point' $
+Type 'Point' $
 	x: int
 	y: int.
 Point extend print do: [

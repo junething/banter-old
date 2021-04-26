@@ -7,7 +7,7 @@ char *stradd(char *left, char *right) {
     strcat(new_str, right);
     return new_str;
 }
-char *strjoin(char *first,...) {
+char *strjoin_(char *first,...) {
     va_list arg_ptr;
     int length = strlen(first);
 
