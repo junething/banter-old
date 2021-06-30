@@ -1,7 +1,7 @@
 .PHONY: all debug
 .DEFAULT: all
 CFLAGS = -Wall -Werror -std=c99 # -pthread
-COMPILER = clang -Wall -Werror -std=c99
+COMPILER = clang -Wall -Werror -std=gnu99 -fcommon
 all: banter
 debug: COMPILER += -g
 debug: COMPILER += -D LOGGING

@@ -83,10 +83,10 @@ Files '*' foreach [ file |
 		case: 'txt' do: [
 			"stuff"
 		];
-		case: 'md' do [
+		case: 'md' do: [
 			"stuff"
 		];
-		case: 'png' | 'jpg' do [
+		case: 'png' | 'jpg' do: [
 			"stuff"
 		];
 ]

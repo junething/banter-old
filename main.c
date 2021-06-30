@@ -249,7 +249,7 @@ void parse_arguments(CompileOptions *compile_options, int argc, char **argv) {
 			if(strlen(assigned) > 1) {
 				assigned = &assigned[1];
 			} else {
-				assigned[0] = (char)NULL;
+				assigned[0] = (char)0;
 				ERROR("Invalid value assigned to option %s", argv[a]);
 			}
 		}

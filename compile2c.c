@@ -88,7 +88,7 @@ int compile_type_header(BanterType *type, CompileOptions *options) {
 				MessageTemplate *message = (MessageTemplate*)m->data[i].data;
     			if(message->implementation != MSG_IMP_FIELD)
     				continue;
-				fprintf(options->file, "\t%s %s;\n", message->returns->name, m->data[i].key);
+    			fprintf(options->file, "\t%s %s;\n", message->returns->name, m->data[i].key);
 			}
 		}
 		fprintf(options->file, "} %s;\n", type->name);

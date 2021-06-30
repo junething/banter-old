@@ -86,6 +86,7 @@ void Token__print_color (Token tok) {
 			break;
 		case BAD:
 		case END_OF_FILE:
+			
 			fprintfc(stdout, BACKGROUND(RED) + BLACK, "%s", Token__to_string(tok));
 			break;
 		case NEWLINE:
