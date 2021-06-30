@@ -1,4 +1,4 @@
-# comparision of some semi-advanced common shell tasks in different langagues
+# comparision of shell tasks in multiple common langauges and proposed solution in banter
 ### bash
 12 LOC
 8 SLOC
